@@ -1,0 +1,135 @@
+using Fepi.Api.Data;
+using Fepi.Api.DTOs;
+using Fepi.Api.Interfaces;
+using Fepi.Api.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Fepi.Api.Services;
+
+public class ConvenioService : IConvenioService
+{
+    private readonly IConvenioRepository _convenioRepo;
+    private readonly FepiDbContext _context;
+    private readonly IAlertaService _alertaService;
+    private readonly IContratoService _contratoService;
+
+    public ConvenioService(IConvenioRepository convenioRepo, FepiDbContext context, IAlertaService alertaService, IContratoService contratoService)
+    {
+        _convenioRepo = convenioRepo;
+        _context = context;
+        _alertaService = alertaService;
+        _contratoService = contratoService;
+    }
+
+    public async Task<int> SolicitarAsync(CrearConvenioDto dto, CancellationToken ct = default)
+    {
+        var contrato = await _context.Contratos.FindAsync(new object[] { dto.ContratoId }, ct)
+            ?? throw new InvalidOperationException("Contrato no encontrado.");
+
+        var variacionPrevia = await _context.ConveniosModificatorios
+            .Where(c => c.ContratoId == dto.ContratoId && c.Estado == EstadoConvenio.Aprobada)
+            .SumAsync(c => c.VariacionAcumuladaPorcentaje, ct);
+
+        var variacionNueva = variacionPrevia;
+        if (dto.Tipo == TipoModificacionConvenio.Monto && dto.MontoSolicitado.HasValue && contrato.MontoContratado > 0)
+            variacionNueva += (dto.MontoSolicitado.Value / contrato.MontoContratado) * 100;
+
+        var convenio = new ConvenioModificatorio
+        {
+            Id = int.Newint(), ContratoId = dto.ContratoId, Tipo = dto.Tipo, Justificacion = dto.Justificacion,
+            Estado = EstadoConvenio.Solicitada, MontoSolicitado = dto.MontoSolicitado, PlazoDiasSolicitado = dto.PlazoDiasSolicitado,
+            VariacionAcumuladaPorcentaje = Math.Round(variacionNueva, 2), SolicitanteId = dto.SolicitanteId
+        };
+
+        foreach (var url in dto.UrlsDocumentos)
+            convenio.Documentos.Add(new ConvenioDocumento { Id = int.Newint(), Nombre = Path.GetFileName(url), UrlArchivo = url });
+
+        await _convenioRepo.AddAsync(convenio, ct);
+        await _convenioRepo.SaveChangesAsync(ct);
+
+        await _alertaService.EmitirAsync(dto.ContratoId, TipoAlerta.ConvenioPendienteResolucion, convenio.Id,
+            nameof(ConvenioModificatorio), RolSistema.SupervisorExterno, "Nueva solicitud de convenio modificatorio pendiente de revisión.", ct);
+
+        return convenio.Id;
+    }
+
+    public async Task<ConvenioDetalleDto> ObtenerDetalleAsync(int convenioId, CancellationToken ct = default)
+    {
+        var c = await _convenioRepo.GetConDetalleAsync(convenioId, ct)
+            ?? throw new InvalidOperationException("Convenio no encontrado.");
+
+        return new ConvenioDetalleDto(c.Id, c.ContratoId, c.Tipo, c.Justificacion, c.Estado, c.MontoSolicitado,
+            c.PlazoDiasSolicitado, c.VariacionAcumuladaPorcentaje,
+            c.RevisionSupervision is null ? null : new RevisionSupervisionDto(c.RevisionSupervision.Decision, c.RevisionSupervision.Justificacion, c.RevisionSupervision.SupervisorId, c.RevisionSupervision.Fecha),
+            c.PromocionResidencia is null ? null : new PromocionResidenciaDto(c.PromocionResidencia.ResidenteId, c.PromocionResidencia.Fecha),
+            c.ResolucionDependencia is null ? null : new ResolucionDependenciaDto(c.ResolucionDependencia.Aprobado, c.ResolucionDependencia.MotivoRechazo, c.ResolucionDependencia.UsuarioDependenciaId, c.ResolucionDependencia.Fecha));
+    }
+
+    public async Task<List<ConvenioResumenDto>> ListarPorContratoAsync(int contratoId, CancellationToken ct = default)
+    {
+        var convenios = await _convenioRepo.GetByContratoAsync(contratoId, ct);
+        return convenios.Select(c => new ConvenioResumenDto(c.Id, c.Tipo, c.Estado, c.MontoSolicitado, c.VariacionAcumuladaPorcentaje)).ToList();
+    }
+
+    public async Task RevisarAsync(int convenioId, RevisarConvenioDto dto, CancellationToken ct = default)
+    {
+        var convenio = await _convenioRepo.GetByIdAsync(convenioId, ct)
+            ?? throw new InvalidOperationException("Convenio no encontrado.");
+
+        _context.ConvenioRevisionesSupervision.Add(new ConvenioRevisionSupervision
+        {
+            Id = int.Newint(), ConvenioModificatorioId = convenioId, Decision = dto.Decision,
+            Justificacion = dto.Justificacion, SupervisorId = dto.SupervisorId
+        });
+
+        convenio.Estado = EstadoConvenio.RevisadaSupervision;
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task PromoverAsync(int convenioId, PromoverConvenioDto dto, CancellationToken ct = default)
+    {
+        var convenio = await _convenioRepo.GetByIdAsync(convenioId, ct)
+            ?? throw new InvalidOperationException("Convenio no encontrado.");
+
+        var tieneRevision = await _context.ConvenioRevisionesSupervision.AnyAsync(r => r.ConvenioModificatorioId == convenioId, ct);
+        if (!tieneRevision)
+            throw new InvalidOperationException("No se puede promover: la solicitud no tiene revisión de supervisión.");
+
+        _context.ConvenioPromocionesResidencia.Add(new ConvenioPromocionResidencia
+        {
+            Id = int.Newint(), ConvenioModificatorioId = convenioId, ResidenteId = dto.ResidenteId
+        });
+
+        convenio.Estado = EstadoConvenio.PromovidaResidencia;
+        await _context.SaveChangesAsync(ct);
+
+        await _alertaService.EmitirAsync(convenio.ContratoId, TipoAlerta.ConvenioPendienteResolucion, convenioId,
+            nameof(ConvenioModificatorio), RolSistema.Dependencia, "Convenio promovido — pendiente de resolución de Dependencia.", ct);
+    }
+
+    public async Task ResolverAsync(int convenioId, ResolverConvenioDto dto, CancellationToken ct = default)
+    {
+        var convenio = await _convenioRepo.GetByIdAsync(convenioId, ct)
+            ?? throw new InvalidOperationException("Convenio no encontrado.");
+
+        _context.ConvenioResolucionesDependencia.Add(new ConvenioResolucionDependencia
+        {
+            Id = int.Newint(), ConvenioModificatorioId = convenioId, Aprobado = dto.Aprobado,
+            MotivoRechazo = dto.MotivoRechazo, UsuarioDependenciaId = dto.UsuarioDependenciaId
+        });
+
+        convenio.Estado = dto.Aprobado ? EstadoConvenio.Aprobada : EstadoConvenio.Rechazada;
+        await _context.SaveChangesAsync(ct);
+
+        if (dto.Aprobado && convenio.Tipo == TipoModificacionConvenio.Monto && convenio.MontoSolicitado.HasValue)
+        {
+            var contrato = await _context.Contratos.FindAsync(new object[] { convenio.ContratoId }, ct)!;
+            await _contratoService.ActualizarMontoContratadoAsync(convenio.ContratoId, contrato!.MontoContratado + convenio.MontoSolicitado.Value, ct);
+        }
+        // Para convenios de Plazo o ConceptoContratos, el frontend invoca por separado
+        // IContratoService.ActualizarProgramaObraAsync / AgregarOActualizarConceptoCatalogoAsync
+        // con los datos capturados en la pantalla de resolución.
+
+        await _alertaService.ResolverAsync(TipoAlerta.ConvenioPendienteResolucion, convenioId, ct);
+    }
+}

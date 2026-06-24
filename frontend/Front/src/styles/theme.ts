@@ -1,0 +1,16 @@
+// ─── Palette tokens ───────────────────────────────────────────────────────────
+export const ink = "#1A2238";
+export const paper = "#F7F5EF";
+export const paper2 = "#FFFFFF";
+export const rule = "#D8D2C2";
+export const folio = "#8C2F2F";
+export const folioSoft = "#F3E4E0";
+export const obra = "#1F3864";
+export const obraSoft = "#DCE6F2";
+export const aprobado = "#2D6A4F";
+export const aprobadoSoft = "#DEEFE5";
+export const observado = "#B8860B";
+export const observadoSoft = "#F6EAD0";
+export const muted = "#6B6557";
+export const pagado = "#5B4FCF";
+export const pagadoSoft = "#EDEAFF";

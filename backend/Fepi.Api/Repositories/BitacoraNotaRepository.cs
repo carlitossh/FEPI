@@ -16,14 +16,16 @@ public class BitacoraNotaRepository : GenericRepository<BitacoraNota>, IBitacora
         return await _context.BitacoraNotas.Include(n => n.Firmas).FirstOrDefaultAsync(n => n.Id == id, ct);
     }
 
-    public async Task<int> GetUltimoFolioAsync(int BitacoraId, CancellationToken ct = default)
-    {
-        return await _context.BitacoraNotas
-            .Where(n => n.BitacoraId == BitacoraId)
-            .Select(n => n.Folio)
-            .DefaultIfEmpty(0)
-            .MaxAsync(ct);
-    }
+public async Task<int> GetUltimoFolioAsync(int BitacoraId, CancellationToken ct = default)
+{
+    var ultimo = await _context.BitacoraNotas
+        .Where(n => n.BitacoraId == BitacoraId)
+        .OrderByDescending(n => n.Folio)
+        .Select(n => (int?)n.Folio)
+        .FirstOrDefaultAsync(ct);
+
+    return ultimo ?? 0;
+}
 
     public async Task<List<BitacoraNota>> BuscarAsync(int BitacoraId, string? asunto, DateOnly? fechaInicio, DateOnly? fechaFin, int? actorId, CancellationToken ct = default)
     {

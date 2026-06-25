@@ -19,15 +19,21 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardContratoDto> ObtenerPorContratoAsync(int contratoId, CancellationToken ct = default)
     {
-        var contrato = await _context.Contratos.FindAsync(new object[] { contratoId }, ct)
-            ?? throw new InvalidOperationException("Contrato no encontrado.");
+        var contrato = await _context.Contratos.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contratoId, ct)
+    ?? throw new InvalidOperationException("Contrato no encontrado.");
 
         var curva = await _avanceService.ObtenerCurvaSAsync(contratoId, ct);
         var avanceProgramado = curva.Puntos.Count > 0 ? curva.Puntos[^1].PorcentajeProgramado : 0;
 
-        var montoEjercido = await _context.Estimaciones
-            .Where(e => e.ContratoId == contratoId && (e.Estado == EstadoEstimacion.Aprobada || e.Estado == EstadoEstimacion.Pagada))
-            .Include(e => e.Conceptos).SelectMany(e => e.Conceptos).SumAsync(c => c.Importe, ct);
+        var montoEjercido = await _context.EstimacionConceptos
+    .Where(c =>
+        c.Estimacion != null &&
+        c.Estimacion.ContratoId == contratoId &&
+        (
+            c.Estimacion.Estado == EstadoEstimacion.Aprobada ||
+            c.Estimacion.Estado == EstadoEstimacion.Pagada
+        ))
+    .SumAsync(c => c.Importe, ct);
 
         var estimacionesPendientes = await _context.Estimaciones
             .CountAsync(e => e.ContratoId == contratoId && (e.Estado == EstadoEstimacion.Enviada || e.Estado == EstadoEstimacion.Observada), ct);
@@ -38,7 +44,8 @@ public class DashboardService : IDashboardService
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
         var garantiasPorVencer = await _context.Garantias
             .CountAsync(g => g.ContratoId == contratoId && g.Estado == EstadoGarantia.Vigente &&
-                        (g.Vigencia.DayNumber - hoy.DayNumber) <= 30, ct);
+                        (g.Vigencia.DayNumber - hoy.DayNumber) >= 0 &&
+(g.Vigencia.DayNumber - hoy.DayNumber) <= 30, ct);
 
         return new DashboardContratoDto(contratoId, contrato.NumeroContrato, curva.PorcentajeCumplimientoActual,
             avanceProgramado, montoEjercido, contrato.MontoContratado, estimacionesPendientes, conveniosActivos, garantiasPorVencer);

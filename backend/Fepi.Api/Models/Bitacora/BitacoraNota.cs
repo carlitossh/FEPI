@@ -20,4 +20,5 @@ public class BitacoraNota
     public bool Cerrada => Firmas.Count(f => f.Firmado) >= 3;
 
     public ICollection<BitacoraFirma> Firmas { get; set; } = new List<BitacoraFirma>();
+
 }

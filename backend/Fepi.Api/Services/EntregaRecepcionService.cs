@@ -10,46 +10,103 @@ public class EntregaRecepcionService : IEntregaRecepcionService
 {
     private readonly FepiDbContext _context;
 
-    public EntregaRecepcionService(FepiDbContext context) => _context = context;
-
-    public async Task IniciarAsync(IniciarEntregaRecepcionDto dto, CancellationToken ct = default)
+    public EntregaRecepcionService(FepiDbContext context)
     {
+        _context = context;
+    }
+
+    public async Task IniciarAsync(
+        IniciarEntregaRecepcionDto dto,
+        CancellationToken ct = default)
+    {
+        var contrato = await _context.Contratos
+            .FirstOrDefaultAsync(c => c.Id == dto.ContratoId, ct)
+            ?? throw new InvalidOperationException("Contrato no encontrado.");
+
+        var existeEntrega = await _context.EntregasRecepcion
+            .AnyAsync(e => e.ContratoId == dto.ContratoId, ct);
+
+        if (existeEntrega)
+            throw new InvalidOperationException("Ya existe una entrega-recepción para este contrato.");
+
         var entrega = new EntregaRecepcion
         {
-            Id = int.Newint(), ContratoId = dto.ContratoId, FechaEntrega = dto.FechaEntrega,
-            EstadoObraDescripcion = dto.EstadoObraDescripcion, EstadoGarantiasDescripcion = dto.EstadoGarantiasDescripcion
+            ContratoId = dto.ContratoId,
+            FechaEntrega = dto.FechaEntrega,
+            EstadoObraDescripcion = dto.EstadoObraDescripcion,
+            EstadoGarantiasDescripcion = dto.EstadoGarantiasDescripcion
         };
 
-        foreach (var url in dto.UrlsEvidencia)
-            entrega.Evidencias.Add(new EntregaRecepcionEvidencia { Id = int.Newint(), UrlArchivo = url });
+        foreach (var url in dto.UrlsEvidencia ?? new List<string>())
+        {
+            entrega.Evidencias.Add(new EntregaRecepcionEvidencia
+            {
+                UrlArchivo = url
+            });
+        }
 
         _context.EntregasRecepcion.Add(entrega);
+
+        // Si tu enum no tiene este valor, cambia por el estado correcto.
+        // contrato.Estado = EstadoContrato.EnEntregaRecepcion;
+
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task<EntregaRecepcionDto> ObtenerAsync(int contratoId, CancellationToken ct = default)
+    public async Task<EntregaRecepcionDto> ObtenerAsync(
+        int contratoId,
+        CancellationToken ct = default)
     {
-        var e = await _context.EntregasRecepcion.FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct)
+        var entrega = await _context.EntregasRecepcion
+            .FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct)
             ?? throw new InvalidOperationException("No existe entrega-recepción registrada para este contrato.");
 
-        return new EntregaRecepcionDto(e.Id, e.FechaEntrega, e.EstadoObraDescripcion);
+        return new EntregaRecepcionDto(
+            entrega.Id,
+            entrega.FechaEntrega,
+            entrega.EstadoObraDescripcion
+        );
     }
 
-    public async Task<FiniquitoDto> EmitirFiniquitoAsync(int contratoId, EmitirFiniquitoDto dto, CancellationToken ct = default)
+    public async Task<FiniquitoDto> EmitirFiniquitoAsync(
+        int contratoId,
+        EmitirFiniquitoDto dto,
+        CancellationToken ct = default)
     {
+        var contrato = await _context.Contratos
+            .FirstOrDefaultAsync(c => c.Id == contratoId, ct)
+            ?? throw new InvalidOperationException("Contrato no encontrado.");
+
+        var existeEntrega = await _context.EntregasRecepcion
+            .AnyAsync(e => e.ContratoId == contratoId, ct);
+
+        if (!existeEntrega)
+            throw new InvalidOperationException("No se puede emitir finiquito sin entrega-recepción.");
+
         var totalPagado = await _context.EstimacionPagos
-            .Where(p => p.Estimacion!.ContratoId == contratoId && p.Estimacion.Estado == EstadoEstimacion.Pagada)
+            .Where(p =>
+                p.Estimacion != null &&
+                p.Estimacion.ContratoId == contratoId &&
+                p.Estimacion.Estado == EstadoEstimacion.Pagada)
             .SumAsync(p => p.MontoPagado, ct);
 
-        var totalPendiente = await _context.Estimaciones
-            .Where(e => e.ContratoId == contratoId && e.Estado == EstadoEstimacion.Aprobada)
-            .Include(e => e.Conceptos).SelectMany(e => e.Conceptos).SumAsync(c => c.Importe, ct);
+        var totalPendiente = await _context.EstimacionConceptos
+            .Where(c =>
+                c.Estimacion != null &&
+                c.Estimacion.ContratoId == contratoId &&
+                c.Estimacion.Estado == EstadoEstimacion.Aprobada)
+            .SumAsync(c => c.Importe, ct);
 
-        var finiquito = await _context.Finiquitos.FirstOrDefaultAsync(f => f.ContratoId == contratoId, ct);
+        var finiquito = await _context.Finiquitos
+            .FirstOrDefaultAsync(f => f.ContratoId == contratoId, ct);
 
         if (finiquito is null)
         {
-            finiquito = new Finiquito { Id = int.Newint(), ContratoId = contratoId };
+            finiquito = new Finiquito
+            {
+                ContratoId = contratoId
+            };
+
             _context.Finiquitos.Add(finiquito);
         }
 
@@ -58,19 +115,37 @@ public class EntregaRecepcionService : IEntregaRecepcionService
         finiquito.TotalDeductivas = dto.TotalDeductivas;
         finiquito.TotalRetenciones = dto.TotalRetenciones;
         finiquito.UrlReporteFiniquito = $"/reportes/finiquito-{contratoId}.pdf";
+        finiquito.FechaEmision = DateTime.UtcNow;
+
+        // Si tu enum tiene Finiquitado, puedes activar esta línea.
+        // contrato.Estado = EstadoContrato.Finiquitado;
 
         await _context.SaveChangesAsync(ct);
 
         return MapFiniquitoDto(finiquito);
     }
 
-    public async Task<FiniquitoDto> ObtenerFiniquitoAsync(int contratoId, CancellationToken ct = default)
+    public async Task<FiniquitoDto> ObtenerFiniquitoAsync(
+        int contratoId,
+        CancellationToken ct = default)
     {
-        var f = await _context.Finiquitos.FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct)
+        var finiquito = await _context.Finiquitos
+            .FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct)
             ?? throw new InvalidOperationException("No existe finiquito registrado para este contrato.");
-        return MapFiniquitoDto(f);
+
+        return MapFiniquitoDto(finiquito);
     }
 
-    private static FiniquitoDto MapFiniquitoDto(Finiquito f) =>
-        new(f.Id, f.TotalPagado, f.TotalPendiente, f.TotalDeductivas, f.TotalRetenciones, f.MontoFinal, f.UrlReporteFiniquito);
+    private static FiniquitoDto MapFiniquitoDto(Finiquito f)
+    {
+        return new FiniquitoDto(
+            f.Id,
+            f.TotalPagado,
+            f.TotalPendiente,
+            f.TotalDeductivas,
+            f.TotalRetenciones,
+            f.MontoFinal,
+            f.UrlReporteFiniquito
+        );
+    }
 }

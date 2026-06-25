@@ -62,27 +62,27 @@ public static class SeedUsuariosScript
             new BitacoraTipoNota
             {
                 Nombre = "Aviso general",
-                Codigo = CatalogoTipoNota.AvisoGeneral
+                Codigo = "AVISO"
             },
             new BitacoraTipoNota
             {
                 Nombre = "Solicitud de modificación al proyecto ejecutivo",
-                Codigo = CatalogoTipoNota.SolicitudModificacionProyectoEjecutivo
+                Codigo = "SOL_MOD_PROY_EJEC"
             },
             new BitacoraTipoNota
             {
                 Nombre = "Solicitud de cambio de procedimiento constructivo",
-                Codigo = CatalogoTipoNota.SolicitudCambioProcedimientoConstructivo
+                Codigo = "SOL_CAM_PROC_CONS"
             },
             new BitacoraTipoNota
             {
                 Nombre = "Solicitud de convenio modificatorio",
-                Codigo = CatalogoTipoNota.SolicitudConvenioModificatorio
+                Codigo = "SOL_CON_MOD"
             },
             new BitacoraTipoNota
             {
                 Nombre = "Aviso de terminación de trabajos",
-                Codigo = CatalogoTipoNota.AvisoTerminacionTrabajos
+                Codigo = "AVISO_TERM_TRAB"
             }
         };
 

@@ -36,13 +36,13 @@ public class ConvenioService : IConvenioService
 
         var convenio = new ConvenioModificatorio
         {
-            Id = int.Newint(), ContratoId = dto.ContratoId, Tipo = dto.Tipo, Justificacion = dto.Justificacion,
+            ContratoId = dto.ContratoId, Tipo = dto.Tipo, Justificacion = dto.Justificacion,
             Estado = EstadoConvenio.Solicitada, MontoSolicitado = dto.MontoSolicitado, PlazoDiasSolicitado = dto.PlazoDiasSolicitado,
             VariacionAcumuladaPorcentaje = Math.Round(variacionNueva, 2), SolicitanteId = dto.SolicitanteId
         };
 
         foreach (var url in dto.UrlsDocumentos)
-            convenio.Documentos.Add(new ConvenioDocumento { Id = int.Newint(), Nombre = Path.GetFileName(url), UrlArchivo = url });
+            convenio.Documentos.Add(new ConvenioDocumento { Nombre = Path.GetFileName(url), UrlArchivo = url });
 
         await _convenioRepo.AddAsync(convenio, ct);
         await _convenioRepo.SaveChangesAsync(ct);
@@ -78,7 +78,7 @@ public class ConvenioService : IConvenioService
 
         _context.ConvenioRevisionesSupervision.Add(new ConvenioRevisionSupervision
         {
-            Id = int.Newint(), ConvenioModificatorioId = convenioId, Decision = dto.Decision,
+            ConvenioModificatorioId = convenioId, Decision = dto.Decision,
             Justificacion = dto.Justificacion, SupervisorId = dto.SupervisorId
         });
 
@@ -97,7 +97,7 @@ public class ConvenioService : IConvenioService
 
         _context.ConvenioPromocionesResidencia.Add(new ConvenioPromocionResidencia
         {
-            Id = int.Newint(), ConvenioModificatorioId = convenioId, ResidenteId = dto.ResidenteId
+            ConvenioModificatorioId = convenioId, ResidenteId = dto.ResidenteId
         });
 
         convenio.Estado = EstadoConvenio.PromovidaResidencia;
@@ -114,7 +114,7 @@ public class ConvenioService : IConvenioService
 
         _context.ConvenioResolucionesDependencia.Add(new ConvenioResolucionDependencia
         {
-            Id = int.Newint(), ConvenioModificatorioId = convenioId, Aprobado = dto.Aprobado,
+            ConvenioModificatorioId = convenioId, Aprobado = dto.Aprobado,
             MotivoRechazo = dto.MotivoRechazo, UsuarioDependenciaId = dto.UsuarioDependenciaId
         });
 

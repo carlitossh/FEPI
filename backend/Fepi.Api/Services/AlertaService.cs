@@ -21,7 +21,7 @@ public class AlertaService : IAlertaService
     {
         _context.Alertas.Add(new Alerta
         {
-            Id = int.Newint(), ContratoId = contratoId, Tipo = tipo, EntidadReferenciaId = entidadId,
+            ContratoId = contratoId, Tipo = tipo, EntidadReferenciaId = entidadId,
             EntidadReferenciaTipo = entidadTipo, RolDestino = rolDestino, Mensaje = mensaje
         });
 
@@ -30,7 +30,7 @@ public class AlertaService : IAlertaService
 
     public async Task ResolverAsync(TipoAlerta tipo, int entidadId, CancellationToken ct = default)
     {
-        var alertas = await _context.Alertas
+        var alertas = await _context.Alertas.AsNoTracking()
             .Where(a => a.Tipo == tipo && a.EntidadReferenciaId == entidadId && a.Estado == EstadoAlerta.Activa)
             .ToListAsync(ct);
 

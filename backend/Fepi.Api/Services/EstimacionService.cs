@@ -25,7 +25,6 @@ public class EstimacionService : IEstimacionService
 
         var estimacion = new Estimacion
         {
-            Id = int.Newint(),
             ContratoId = dto.ContratoId,
             NumeroCorrelativo = ultimoCorrelativo + 1,
             Periodo = dto.Periodo,
@@ -79,12 +78,12 @@ public class EstimacionService : IEstimacionService
 
         foreach (var item in dto.Conceptos)
         {
-            var ConceptoContrato = await _context.ConceptoContratos.FindAsync(new object[] { item.ConceptoContratoId }, ct)
+            var ConceptoContrato = await _context.ConceptosContrato.FindAsync(new object[] { item.ConceptoContratoId }, ct)
                 ?? throw new InvalidOperationException($"Concepto de catálogo {item.ConceptoContratoId} no encontrado.");
 
             estimacion.Conceptos.Add(new EstimacionConcepto
             {
-                Id = int.Newint(), EstimacionId = estimacionId, ConceptoContratoId = item.ConceptoContratoId,
+                EstimacionId = estimacionId, ConceptoContratoId = item.ConceptoContratoId,
                 CantidadEjecutada = item.CantidadEjecutada, Importe = item.CantidadEjecutada * ConceptoContrato.PrecioUnitario
             });
         }
@@ -98,7 +97,7 @@ public class EstimacionService : IEstimacionService
         {
             _context.EstimacionNotasBitacora.Add(new EstimacionNotaBitacora
             {
-                Id = int.Newint(), EstimacionId = estimacionId, NotaBitacoraId = notaId
+                EstimacionId = estimacionId, NotaBitacoraId = notaId
             });
         }
 
@@ -115,9 +114,9 @@ public class EstimacionService : IEstimacionService
         estimacion.FechaEnvio = DateTime.UtcNow;
         estimacion.UsuarioEnvioId = usuarioId;
 
-        _context.EstimacionHistorial.Add(new EstimacionHistorial
+        _context.EstimacionHistoriales.Add(new EstimacionHistorial
         {
-            Id = int.Newint(), EstimacionId = estimacionId, EstadoAnterior = estadoAnterior,
+            EstimacionId = estimacionId, EstadoAnterior = estadoAnterior,
             EstadoNuevo = EstadoEstimacion.Enviada, Fecha = estimacion.FechaEnvio.Value, UsuarioId = usuarioId
         });
 
@@ -133,7 +132,7 @@ public class EstimacionService : IEstimacionService
     {
         var observacion = new EstimacionObservacion
         {
-            Id = int.Newint(), EstimacionId = estimacionId, Texto = dto.Texto, UsuarioId = usuarioId
+            EstimacionId = estimacionId, Texto = dto.Texto, UsuarioId = usuarioId
         };
 
         _context.EstimacionObservaciones.Add(observacion);
@@ -150,9 +149,9 @@ public class EstimacionService : IEstimacionService
         var estadoAnterior = estimacion.Estado;
         estimacion.Estado = dto.NuevoEstado;
 
-        _context.EstimacionHistorial.Add(new EstimacionHistorial
+        _context.EstimacionHistoriales.Add(new EstimacionHistorial
         {
-            Id = int.Newint(), EstimacionId = estimacionId, EstadoAnterior = estadoAnterior,
+            EstimacionId = estimacionId, EstadoAnterior = estadoAnterior,
             EstadoNuevo = dto.NuevoEstado, Fecha = DateTime.UtcNow, UsuarioId = dto.UsuarioId, Comentario = dto.Comentario
         });
 
@@ -169,17 +168,17 @@ public class EstimacionService : IEstimacionService
 
         _context.EstimacionPagos.Add(new EstimacionPago
         {
-            Id = int.Newint(), EstimacionId = estimacionId, FechaPago = dto.FechaPago,
+            EstimacionId = estimacionId, FechaPago = dto.FechaPago,
             ReferenciaBancaria = dto.ReferenciaBancaria, MontoPagado = dto.MontoPagado
         });
 
         var estadoAnterior = estimacion.Estado;
         estimacion.Estado = EstadoEstimacion.Pagada;
 
-        _context.EstimacionHistorial.Add(new EstimacionHistorial
+        _context.EstimacionHistoriales.Add(new EstimacionHistorial
         {
-            Id = int.Newint(), EstimacionId = estimacionId, EstadoAnterior = estadoAnterior,
-            EstadoNuevo = EstadoEstimacion.Pagada, Fecha = DateTime.UtcNow, UsuarioId = estimacion.UsuarioEnvioId ?? int.Empty
+            EstimacionId = estimacionId, EstadoAnterior = estadoAnterior,
+            EstadoNuevo = EstadoEstimacion.Pagada, Fecha = DateTime.UtcNow, UsuarioId = estimacion.UsuarioEnvioId ?? 0
         });
 
         await _context.SaveChangesAsync(ct);
@@ -187,7 +186,7 @@ public class EstimacionService : IEstimacionService
 
     public async Task<List<EstimacionHistorialDto>> ObtenerHistorialAsync(int estimacionId, CancellationToken ct = default)
     {
-        var historial = await _context.EstimacionHistorial
+        var historial = await _context.EstimacionHistoriales
             .Where(h => h.EstimacionId == estimacionId)
             .OrderBy(h => h.Fecha)
             .ToListAsync(ct);

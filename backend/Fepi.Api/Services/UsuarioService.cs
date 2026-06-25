@@ -13,15 +13,20 @@ public class UsuarioService : IUsuarioService
 
     public async Task<UsuarioDto?> ObtenerPorIdAsync(int usuarioId, CancellationToken ct = default)
     {
-        var u = await _context.Usuarios.FindAsync(new object[] { usuarioId }, ct);
+        var u = await _context.Usuarios
+    .AsNoTracking()
+    .FirstOrDefaultAsync(x => x.Id == usuarioId, ct);
         return u is null ? null : new UsuarioDto(u.Id, u.Nombre, u.Correo, u.Activo);
     }
 
     public async Task<List<UsuarioContratoDto>> ObtenerRolesYContratosAsync(int usuarioId, CancellationToken ct = default)
     {
-        return await _context.UsuarioContratoes
-            .Where(ucr => ucr.UsuarioId == usuarioId)
-            .Select(ucr => new UsuarioContratoDto(ucr.ContratoId, ucr.Rol))
-            .ToListAsync(ct);
+return await _context.UsuarioContratos
+    .AsNoTracking()
+    .Where(x => x.UsuarioId == usuarioId)
+    .Select(x => new UsuarioContratoDto(
+        x.ContratoId,
+        x.Rol))
+    .ToListAsync(ct);
     }
 }

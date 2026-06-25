@@ -33,6 +33,21 @@ public class BitacoraController : ControllerBase
         [FromQuery] DateOnly? fechaInicio, [FromQuery] DateOnly? fechaFin, [FromQuery] int? actorId, CancellationToken ct)
         => Ok(await _service.BuscarNotasAsync(BitacoraId, asunto, fechaInicio, fechaFin, actorId, ct));
 
+    [HttpGet("{bitacoraId:int}/notas")]
+    public async Task<ActionResult<List<BitacoraNotaDto>>> ObtenerNotas(
+        int bitacoraId,
+        CancellationToken ct)
+    {
+        return Ok(await _service.BuscarNotasAsync(
+            bitacoraId,
+            null,
+            null,
+            null,
+            null,
+            ct
+        ));
+    }
+
     [HttpPost("minutas")]
     public async Task<IActionResult> CrearMinuta([FromBody] CrearMinutaDto dto, CancellationToken ct)
     {
@@ -47,4 +62,6 @@ public class BitacoraController : ControllerBase
     [HttpPost("incidencias/generar-nota")]
     public async Task<ActionResult<BitacoraNotaDto>> GenerarNotaDesdeIncidencia([FromBody] GenerarNotaDesdeIncidenciaDto dto, CancellationToken ct)
         => Ok(await _service.GenerarNotaDesdeIncidenciaAsync(dto, ct));
+
+    
 }

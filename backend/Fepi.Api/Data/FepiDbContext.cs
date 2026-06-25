@@ -52,7 +52,7 @@ public class FepiDbContext : DbContext
     public DbSet<BitacoraMinuta> BitacoraMinutas => Set<BitacoraMinuta>();
     public DbSet<BitacoraMinutaParticipante> BitacoraMinutaParticipantes => Set<BitacoraMinutaParticipante>();
     public DbSet<BitacoraIncidencia> BitacoraIncidencias => Set<BitacoraIncidencia>();
-    public DbSet<BitacoraTipoNota> BitacoraTiposNota => Set<BitacoraTipoNota>();
+    public DbSet<BitacoraTipoNota> BitacoraTiposNota { get; set; }
 
     // =====================
     // CONVENIOS

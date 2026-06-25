@@ -1,7 +1,15 @@
-import { useState } from "react";
+import { getCurvaS, registrarAvance, getConceptosContrato } from "../services/avanceService";
+import { useEffect, useState } from "react";
 import { Camera, CheckCircle } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from "recharts";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
@@ -11,9 +19,15 @@ import { TextInput } from "../../../components/TextInput";
 import { TextArea } from "../../../components/TextArea";
 import { Modal } from "../../../components/Modal";
 import { AlertsPanel } from "../../../components/AlertsPanel";
-import { mockCurvaS } from "../../dashboard/mock/mockCurvaS";
 import {
-  obra, folio, rule, muted, observado, aprobado, aprobadoSoft, paper2,
+  obra,
+  folio,
+  rule,
+  muted,
+  observado,
+  aprobado,
+  aprobadoSoft,
+  paper2,
 } from "../../../styles/theme";
 
 interface TabAvanceProps {
@@ -21,9 +35,42 @@ interface TabAvanceProps {
 }
 
 export function TabAvance({ rol }: TabAvanceProps) {
+  const [curvaS, setCurvaS] = useState<any[]>([]);
   const [showRegistro, setShowRegistro] = useState(false);
-  const [avance, setAvance] = useState({ descripcion: "", porcentaje: "", foto: null as string | null });
+  const [conceptos, setConceptos] = useState<any[]>([]);
+  const [conceptoSeleccionado, setConceptoSeleccionado] = useState<any>(null);
+  const [avance, setAvance] = useState({
+    descripcion: "",
+    cantidadEjecutada: "",
+    foto: null as string | null,
+  });
+
   const puedeRegistrar = rol === "Residente" || rol === "Supervisor";
+
+  async function cargarDatos() {
+    const curva = await getCurvaS(1);
+    setCurvaS(curva.puntos ?? []);
+
+    const conceptosData = await getConceptosContrato(1);
+    setConceptos(conceptosData ?? []);
+    setConceptoSeleccionado(conceptosData?.[0] ?? null);
+}
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const curvaGrafica = curvaS.map((x) => ({
+    mes: x.periodo.substring(5),
+    programado: x.porcentajeProgramado,
+    real: x.porcentajeReal,
+  }));
+
+  const ultimoPunto = curvaS[curvaS.length - 1];
+
+  const avanceReal = ultimoPunto?.porcentajeReal ?? 0;
+  const avanceProgramado = ultimoPunto?.porcentajeProgramado ?? 0;
+  const desviacion = avanceReal - avanceProgramado;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }}>
@@ -46,19 +93,34 @@ export function TabAvance({ rol }: TabAvanceProps) {
             >
               Curva S — Avance físico vs. programado
             </div>
+
             {puedeRegistrar && (
-              <PrimaryBtn onClick={() => setShowRegistro(true)}>+ Registrar avance</PrimaryBtn>
+              <PrimaryBtn onClick={() => setShowRegistro(true)}>
+                + Registrar avance
+              </PrimaryBtn>
             )}
           </div>
+
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={mockCurvaS} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
+            <LineChart
+              data={curvaGrafica}
+              margin={{ top: 4, right: 8, bottom: 0, left: -20 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={rule} />
               <XAxis
                 dataKey="mes"
-                tick={{ fontSize: 11, fill: muted, fontFamily: "JetBrains Mono" }}
+                tick={{
+                  fontSize: 11,
+                  fill: muted,
+                  fontFamily: "JetBrains Mono",
+                }}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: muted, fontFamily: "JetBrains Mono" }}
+                tick={{
+                  fontSize: 11,
+                  fill: muted,
+                  fontFamily: "JetBrains Mono",
+                }}
                 unit="%"
                 domain={[0, 100]}
               />
@@ -69,7 +131,9 @@ export function TabAvance({ rol }: TabAvanceProps) {
                   borderRadius: 3,
                   fontSize: 12,
                 }}
-                formatter={(v: number | null) => (v !== null ? [`${v}%`] : ["—"])}
+                formatter={(value) =>
+                  value !== null ? [`${value}%`] : ["—"]
+                }
               />
               <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
               <Line
@@ -94,9 +158,24 @@ export function TabAvance({ rol }: TabAvanceProps) {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           {[
-            { label: "Avance físico actual", value: "63%", note: "Programado: 68%", color: observado },
-            { label: "Desviación del periodo", value: "-5 pp", note: "8% de atraso relativo", color: folio },
-            { label: "Periodo activo", value: "Jun 2026", note: "Mes 4 de 7", color: obra },
+            {
+              label: "Avance físico actual",
+              value: `${avanceReal.toFixed(2)}%`,
+              note: `Programado: ${avanceProgramado.toFixed(2)}%`,
+              color: observado,
+            },
+            {
+              label: "Desviación del periodo",
+              value: `${desviacion.toFixed(2)} pp`,
+              note: desviacion < 0 ? "Atraso respecto al programa" : "Adelanto respecto al programa",
+              color: desviacion < 0 ? folio : aprobado,
+            },
+            {
+              label: "Periodo activo",
+              value: ultimoPunto?.periodo ?? "—",
+              note: "Según programa de obra",
+              color: obra,
+            },
           ].map((k) => (
             <Card key={k.label} style={{ padding: "16px 18px" }}>
               <div
@@ -120,7 +199,9 @@ export function TabAvance({ rol }: TabAvanceProps) {
               >
                 {k.label}
               </div>
-              <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>{k.note}</div>
+              <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>
+                {k.note}
+              </div>
             </Card>
           ))}
         </div>
@@ -140,20 +221,53 @@ export function TabAvance({ rol }: TabAvanceProps) {
             <TextArea
               placeholder="Describe las actividades ejecutadas hoy..."
               value={avance.descripcion}
-              onChange={(v) => setAvance((p) => ({ ...p, descripcion: v }))}
+              onChange={(v) =>
+                setAvance((p) => ({ ...p, descripcion: v }))
+              }
               rows={3}
             />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <SectionLabel>Porcentaje de avance acumulado (%)</SectionLabel>
+            <SectionLabel>Concepto</SectionLabel>
+            <select
+              value={conceptoSeleccionado?.id ?? ""}
+              onChange={(e) => {
+              const seleccionado = conceptos.find(
+                (c) => c.id === Number(e.target.value)
+              );
+              setConceptoSeleccionado(seleccionado ?? null);
+              }}
+              style={{
+                width: "100%",
+                padding: "10px",
+                border: `1px solid ${rule}`,
+                borderRadius: 4,
+                background: "#FAF8F2",
+              fontSize: 13,
+              }}
+            >
+            {conceptos.map((c) => (
+              <option key={c.id} value={c.id}>
+              {c.clave} — {c.descripcion}
+              </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <SectionLabel>
+  Cantidad ejecutada hoy {conceptoSeleccionado ? `(${conceptoSeleccionado.unidadMedida})` : ""}
+</SectionLabel>
             <TextInput
-              placeholder="Ej: 65"
-              value={avance.porcentaje}
-              onChange={(v) => setAvance((p) => ({ ...p, porcentaje: v }))}
+              placeholder="Ej: 25"
+              value={avance.cantidadEjecutada}
+              onChange={(v) =>
+                setAvance((p) => ({ ...p, cantidadEjecutada: v }))
+              }
             />
           </div>
+
           <div style={{ marginBottom: 20 }}>
-            <SectionLabel>Fotografía de evidencia (requerida)</SectionLabel>
+            <SectionLabel>Fotografía de evidencia</SectionLabel>
             <div
               style={{
                 border: `2px dashed ${avance.foto ? aprobado : rule}`,
@@ -169,7 +283,10 @@ export function TabAvance({ rol }: TabAvanceProps) {
                 input.accept = "image/*";
                 input.onchange = (e) => {
                   const target = e.target as HTMLInputElement;
-                  setAvance((p) => ({ ...p, foto: target.files?.[0]?.name || "foto.jpg" }));
+                  setAvance((p) => ({
+                    ...p,
+                    foto: target.files?.[0]?.name || "foto.jpg",
+                  }));
                 };
                 input.click();
               }}
@@ -184,18 +301,47 @@ export function TabAvance({ rol }: TabAvanceProps) {
                 <div style={{ color: muted }}>
                   <Camera size={24} style={{ marginBottom: 8 }} />
                   <br />
-                  <span style={{ fontSize: 12 }}>Toca para adjuntar fotografía</span>
+                  <span style={{ fontSize: 12 }}>
+                    Toca para adjuntar fotografía
+                  </span>
                 </div>
               )}
             </div>
           </div>
+
           <div style={{ display: "flex", gap: 10 }}>
             <SecondaryBtn onClick={() => setShowRegistro(false)} style={{ flex: 1 }}>
               Cancelar
             </SecondaryBtn>
+
             <PrimaryBtn
-              onClick={() => setShowRegistro(false)}
-              disabled={!avance.descripcion || !avance.porcentaje || !avance.foto}
+              onClick={async () => {
+                await registrarAvance({
+                  contratoId: 1,
+                  fecha: new Date().toISOString().substring(0, 10),
+                  conceptoContratoId: conceptoSeleccionado?.id,
+                  cantidadEjecutada: Number(avance.cantidadEjecutada),
+                  descripcionActividad: avance.descripcion,
+                  actorId: 1,
+                  urlsEvidencia: avance.foto ? [avance.foto] : [],
+                });
+
+                await cargarDatos();
+
+                setAvance({
+                  descripcion: "",
+                  cantidadEjecutada: "",
+                  foto: null,
+                });
+
+                setShowRegistro(false);
+              }}
+disabled={
+  !conceptoSeleccionado ||
+  !avance.descripcion ||
+  !avance.cantidadEjecutada ||
+  !avance.foto
+}
               style={{ flex: 1 }}
             >
               Guardar registro

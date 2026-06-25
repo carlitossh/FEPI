@@ -1,9 +1,37 @@
 import { Bell } from "lucide-react";
+import { useEffect, useState } from "react";
 import { folio, observado, ink, muted } from "../styles/theme";
 import { Card } from "./Card";
-import { mockAlertas } from "../features/dashboard/mock/mockAlertas";
 
-export function AlertsPanel() {
+const API = "http://localhost:5000/api";
+
+const ROL_NUM: Record<string, number> = {
+  Dependencia: 1, Residente: 2, Superintendente: 3,
+  Supervisor: 4, Financiero: 5, Administrador: 6,
+};
+
+function tipoANivel(tipo: number): "rojo" | "amarillo" | "gris" {
+  if (tipo === 1 || tipo === 2) return "rojo";
+  if (tipo === 3 || tipo === 4) return "amarillo";
+  return "gris";
+}
+
+interface AlertsPanelProps {
+  rol?: string;
+  contratoId?: number;
+}
+
+export function AlertsPanel({ rol = "Superintendente", contratoId = 1 }: AlertsPanelProps) {
+  const [alertas, setAlertas] = useState<any[]>([]);
+
+  useEffect(() => {
+    const rolNum = ROL_NUM[rol] ?? 3;
+    fetch(`${API}/alertas?rol=${rolNum}&contratoId=${contratoId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setAlertas)
+      .catch(() => setAlertas([]));
+  }, [rol, contratoId]);
+
   return (
     <Card style={{ padding: "18px 16px", height: "fit-content" }}>
       <div
@@ -21,15 +49,17 @@ export function AlertsPanel() {
       >
         <Bell size={12} /> Alertas activas
       </div>
-      {mockAlertas.map((a, i) => {
+      {alertas.length === 0 && (
+        <div style={{ fontSize: 12, color: muted, textAlign: "center", padding: "12px 0" }}>
+          Sin alertas activas.
+        </div>
+      )}
+      {alertas.map((a, i) => {
+        const nivel = tipoANivel(a.tipo);
         const color =
-          a.nivel === "rojo" ? folio : a.nivel === "amarillo" ? observado : "#999";
+          nivel === "rojo" ? folio : nivel === "amarillo" ? observado : "#999";
         const bg =
-          a.nivel === "rojo"
-            ? "#F3E4E0"
-            : a.nivel === "amarillo"
-            ? "#F6EAD0"
-            : "#F5F5F5";
+          nivel === "rojo" ? "#F3E4E0" : nivel === "amarillo" ? "#F6EAD0" : "#F5F5F5";
         return (
           <div
             key={i}
@@ -54,21 +84,8 @@ export function AlertsPanel() {
                 marginTop: 4,
               }}
             />
-            <div>
-              <div style={{ fontSize: 11.5, color: ink, lineHeight: 1.4 }}>
-                {a.texto}
-              </div>
-              <div
-                style={{
-                  fontFamily: "JetBrains Mono",
-                  fontSize: 10,
-                  color,
-                  marginTop: 2,
-                  fontWeight: 600,
-                }}
-              >
-                {a.ref}
-              </div>
+            <div style={{ fontSize: 11.5, color: ink, lineHeight: 1.4 }}>
+              {a.mensaje}
             </div>
           </div>
         );

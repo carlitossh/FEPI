@@ -207,7 +207,7 @@ export function TabAvance({ rol }: TabAvanceProps) {
         </div>
       </div>
 
-      <AlertsPanel />
+      <AlertsPanel rol={rol} contratoId={1} />
 
       {showRegistro && (
         <Modal

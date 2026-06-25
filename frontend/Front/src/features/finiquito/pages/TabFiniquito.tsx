@@ -275,7 +275,7 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
         </Card>
       </div>
 
-      <AlertsPanel />
+      <AlertsPanel rol={rol} contratoId={1} />
 
       {showCierre && (
         <Modal

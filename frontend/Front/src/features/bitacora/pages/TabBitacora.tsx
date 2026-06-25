@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
@@ -73,6 +73,21 @@ function mapFirmas(firmas: any[] | undefined): FirmasBitacora {
   }
 
   return base;
+}
+
+function exportarCSV(eventos: EventoBitacora[]) {
+  const headers = ["Folio", "Tipo", "Fecha", "Asunto", "Firmas", "Folio ref."];
+  const rows = eventos.map((e) => [
+    e.folio, e.tipo, e.fecha, `"${e.asunto.replace(/"/g, '""')}"`, e.firmasTexto, e.folioRef ?? "",
+  ]);
+  const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "bitacora.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function contarFirmasLocal(firmas: FirmasBitacora) {
@@ -326,6 +341,26 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               <option key={o}>{o}</option>
             ))}
           </select>
+
+          <button
+            onClick={() => exportarCSV(filtradas)}
+            title="Exportar selección"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              border: `1px solid ${rule}`,
+              background: paper2,
+              borderRadius: 3,
+              padding: "7px 10px",
+              fontSize: 12,
+              color: muted,
+              cursor: "pointer",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
+          >
+            <Download size={13} /> Exportar
+          </button>
         </div>
       </div>
 

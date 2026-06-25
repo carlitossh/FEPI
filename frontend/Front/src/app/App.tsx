@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, ChevronRight } from "lucide-react";
 import { TopBar } from "./components/TopBar";
 import { TabBar, TABS } from "./components/TabBar";
@@ -11,7 +11,7 @@ import { TabConvenios } from "../features/convenios/pages/TabConvenios";
 import { TabExpediente } from "../features/expediente/pages/TabExpediente";
 import { TabFiniquito } from "../features/finiquito/pages/TabFiniquito";
 import { TabAdmin } from "../features/admin/pages/TabAdmin";
-import { mockContrato } from "../features/dashboard/mock/mockContrato";
+import { getContrato } from "../features/dashboard/services/dashboardService";
 import { paper, paper2, rule, folio, obra, obraSoft, muted } from "../styles/theme";
 
 export default function App() {
@@ -19,6 +19,11 @@ export default function App() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [rol, setRol] = useState("Superintendente");
   const [showRolPicker, setShowRolPicker] = useState(false);
+  const [contratoNumero, setContratoNumero] = useState("CT-001");
+
+  useEffect(() => {
+    getContrato(1).then((c) => setContratoNumero(c.numeroContrato)).catch(() => {});
+  }, []);
 
   return (
     <div
@@ -64,7 +69,7 @@ export default function App() {
           </div>
           <ChevronRight size={12} color={rule} />
           <div style={{ fontFamily: "JetBrains Mono", fontSize: 11, color: muted }}>
-            {mockContrato.id}
+            {contratoNumero}
           </div>
           <div
             style={{
@@ -82,7 +87,7 @@ export default function App() {
           </div>
         </div>
 
-        {activeTab === "dashboard" && <TabDashboard />}
+        {activeTab === "dashboard" && <TabDashboard rol={rol} />}
         {activeTab === "estimaciones" && <TabEstimaciones rol={rol} />}
         {activeTab === "avance" && <TabAvance rol={rol} />}
         {activeTab === "bitacora" && <TabBitacora rol={rol} />}
@@ -140,7 +145,7 @@ export default function App() {
               <X size={16} />
             </button>
           </div>
-          <AlertsPanel />
+          <AlertsPanel rol={rol} contratoId={1} />
         </div>
       )}
 

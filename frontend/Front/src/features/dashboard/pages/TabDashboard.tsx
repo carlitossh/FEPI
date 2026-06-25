@@ -6,28 +6,28 @@ import { Card } from "../../../components/Card";
 import { AlertsPanel } from "../../../components/AlertsPanel";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import { obra, folio, rule, muted, observado, aprobado, paper2 } from "../../../styles/theme";
-import { getContrato, getCurvaS } from "../services/dashboardService";
+import { getDashboard, getCurvaS } from "../services/dashboardService";
 
-export function TabDashboard() {
-  const [contrato, setContrato] = useState<any>(null);
+interface TabDashboardProps {
+  rol: string;
+}
+
+export function TabDashboard({ rol }: TabDashboardProps) {
+  const [dash, setDash] = useState<any>(null);
   const [curvaS, setCurvaS] = useState<any[]>([]);
 
   useEffect(() => {
-    async function cargarDashboard() {
-      const contratoData = await getContrato(1);
-      setContrato(contratoData);
-
-      const curvaData = await getCurvaS(1);
-      setCurvaS(curvaData.puntos ?? []);
-    }
-
-    cargarDashboard();
+    getDashboard(1).then(setDash).catch(() => {});
+    getCurvaS(1).then((d) => setCurvaS(d.puntos ?? [])).catch(() => {});
   }, []);
 
-  const totalContratado = contrato?.montoContratado ?? 0;
-  const ejercido = 10_200_000;
-  const pctFisico = 63;
-  const pctProg = 68;
+  const totalContratado = dash?.montoContratado ?? 0;
+  const ejercido = dash?.montoEjercido ?? 0;
+  const pctFisico = dash?.avanceFisicoPct ?? 0;
+  const pctProg = dash?.avanceProgramadoPct ?? 0;
+  const estPendientes = dash?.estimacionesPendientes ?? 0;
+  const conveniosActivos = dash?.conveniosActivos ?? 0;
+  const garantiasPorVencer = dash?.garantiasPorVencer ?? 0;
 
   const curvaGrafica = curvaS.map((x) => ({
     mes: x.periodo.substring(5),
@@ -40,10 +40,10 @@ export function TabDashboard() {
       <div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
           {[
-            { label: "Avance físico", value: `${pctFisico}%`, note: `Prog. ${pctProg}%`, color: obra },
-            { label: "Monto ejercido", value: "$10.2M", note: `de ${fmtMXN(totalContratado)} contratados`, color: obra },
-            { label: "Est. pendientes", value: "2", note: "014 vence pronto", color: observado },
-            { label: "Garantías activas", value: "3", note: "1 por vencer", color: folio },
+            { label: "Avance físico", value: `${pctFisico.toFixed(1)}%`, note: `Prog. ${pctProg.toFixed(1)}%`, color: obra },
+            { label: "Monto ejercido", value: fmtMXN(ejercido), note: `de ${fmtMXN(totalContratado)} contratados`, color: obra },
+            { label: "Est. pendientes", value: String(estPendientes), note: "sin resolver", color: observado },
+            { label: "Garantías por vencer", value: String(garantiasPorVencer), note: `${conveniosActivos} convenio(s) activo(s)`, color: folio },
           ].map((k) => (
             <Card key={k.label} style={{ padding: "14px 16px" }}>
               <div style={{ fontFamily: "'IBM Plex Serif', serif", fontSize: 22, fontWeight: 700, color: k.color }}>
@@ -82,25 +82,22 @@ export function TabDashboard() {
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: muted, marginBottom: 12 }}>
             Avance financiero
           </div>
-
           <div style={{ fontSize: 12, color: muted, marginBottom: 6, display: "flex", justifyContent: "space-between" }}>
             <span>{fmtMXN(ejercido)} ejercidos</span>
             <span style={{ fontFamily: "JetBrains Mono", color: obra, fontWeight: 600 }}>
               {totalContratado > 0 ? Math.round((ejercido / totalContratado) * 100) : 0}%
             </span>
           </div>
-
           <div style={{ background: rule, borderRadius: 2, height: 8, overflow: "hidden" }}>
             <div
               style={{
                 background: obra,
                 height: "100%",
-                width: `${totalContratado > 0 ? (ejercido / totalContratado) * 100 : 0}%`,
+                width: `${totalContratado > 0 ? Math.min((ejercido / totalContratado) * 100, 100) : 0}%`,
                 borderRadius: 2,
               }}
             />
           </div>
-
           <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>
             Contrato total: {fmtMXN(totalContratado)}
           </div>
@@ -114,13 +111,9 @@ export function TabDashboard() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontFamily: "'IBM Plex Serif', serif", fontSize: 28, fontWeight: 700, color: observado }}>
-                  2
+                  {estPendientes}
                 </div>
                 <div style={{ fontSize: 11, color: muted }}>pendientes de resolución</div>
-              </div>
-              <div style={{ fontSize: 12, color: muted, textAlign: "right" }}>
-                <div>Pagadas: <strong style={{ color: aprobado }}>3</strong></div>
-                <div>Aprobadas: <strong style={{ color: obra }}>1</strong></div>
               </div>
             </div>
           </Card>
@@ -132,20 +125,19 @@ export function TabDashboard() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontFamily: "'IBM Plex Serif', serif", fontSize: 28, fontWeight: 700, color: folio }}>
-                  1
+                  {conveniosActivos}
                 </div>
-                <div style={{ fontSize: 11, color: muted }}>en proceso (CM-008)</div>
+                <div style={{ fontSize: 11, color: muted }}>en proceso</div>
               </div>
               <div style={{ fontSize: 12, color: muted, textAlign: "right" }}>
-                <div>Aprobados: <strong style={{ color: aprobado }}>2</strong></div>
-                <div>Variación: <strong style={{ color: observado }}>18%</strong></div>
+                <div>Garantías por vencer: <strong style={{ color: aprobado }}>{garantiasPorVencer}</strong></div>
               </div>
             </div>
           </Card>
         </div>
       </div>
 
-      <AlertsPanel />
+      <AlertsPanel rol={rol} contratoId={1} />
     </div>
   );
 }

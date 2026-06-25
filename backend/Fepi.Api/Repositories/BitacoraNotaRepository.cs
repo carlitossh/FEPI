@@ -13,7 +13,9 @@ public class BitacoraNotaRepository : GenericRepository<BitacoraNota>, IBitacora
 
     public async Task<BitacoraNota?> GetConFirmasAsync(int id, CancellationToken ct = default)
     {
-        return await _context.BitacoraNotas.Include(n => n.Firmas).FirstOrDefaultAsync(n => n.Id == id, ct);
+        return await _context.BitacoraNotas
+            .Include(n => n.Firmas).ThenInclude(f => f.Usuario)
+            .FirstOrDefaultAsync(n => n.Id == id, ct);
     }
 
 public async Task<int> GetUltimoFolioAsync(int BitacoraId, CancellationToken ct = default)
@@ -29,7 +31,8 @@ public async Task<int> GetUltimoFolioAsync(int BitacoraId, CancellationToken ct 
 
     public async Task<List<BitacoraNota>> BuscarAsync(int BitacoraId, string? asunto, DateOnly? fechaInicio, DateOnly? fechaFin, int? actorId, CancellationToken ct = default)
     {
-        var query = _context.BitacoraNotas.Include(n => n.Firmas)
+        var query = _context.BitacoraNotas
+            .Include(n => n.Firmas).ThenInclude(f => f.Usuario)
             .Where(n => n.BitacoraId == BitacoraId);
 
         if (!string.IsNullOrWhiteSpace(asunto))

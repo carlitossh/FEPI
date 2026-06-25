@@ -10,10 +10,17 @@ namespace Fepi.Api.Controllers;
 public class ContratosController : ControllerBase
 {
     private readonly IContratoService _service;
+    private readonly IUsuarioService _usuarioService;
+    private readonly IEntregaRecepcionService _entregaService;
 
-    public ContratosController(IContratoService service)
+    public ContratosController(
+        IContratoService service,
+        IUsuarioService usuarioService,
+        IEntregaRecepcionService entregaService)
     {
         _service = service;
+        _usuarioService = usuarioService;
+        _entregaService = entregaService;
     }
 
     [HttpPost]
@@ -79,6 +86,38 @@ public class ContratosController : ControllerBase
     {
         var contrato = await _service.ObtenerDetalleAsync(id, ct);
         return Ok(contrato.ConceptoContratos);
+    }
+
+    [HttpGet("{id:int}/usuarios")]
+    public async Task<ActionResult<List<UsuarioContratoDetalleDto>>> ListarUsuarios(
+        int id,
+        CancellationToken ct)
+        => Ok(await _usuarioService.ListarPorContratoAsync(id, ct));
+
+    [HttpPost("{id:int}/usuarios")]
+    public async Task<ActionResult<UsuarioContratoDetalleDto>> InvitarUsuario(
+        int id,
+        [FromBody] InvitarUsuarioContratoDto dto,
+        CancellationToken ct)
+    {
+        var result = await _usuarioService.InvitarAsync(id, dto, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}/finiquito")]
+    public async Task<ActionResult<FiniquitoDto>> ObtenerFiniquito(int id, CancellationToken ct)
+        => Ok(await _entregaService.ObtenerFiniquitoAsync(id, ct));
+
+    [HttpPost("{id:int}/cierre")]
+    public async Task<IActionResult> RegistrarCierre(
+        int id,
+        [FromBody] RegistrarCierreDto dto,
+        CancellationToken ct)
+    {
+        await _entregaService.IniciarAsync(
+            new IniciarEntregaRecepcionDto(id, dto.FechaEntrega, dto.EstadoObraDescripcion, dto.EstadoGarantiasDescripcion, dto.UrlsEvidencia),
+            ct);
+        return NoContent();
     }
 }
 

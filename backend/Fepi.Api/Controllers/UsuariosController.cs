@@ -27,4 +27,28 @@ public class UsuariosController : ControllerBase
         int id,
         CancellationToken ct)
         => Ok(await _service.ObtenerRolesYContratosAsync(id, ct));
+
+    [HttpPatch("{id:int}/rol")]
+    public async Task<IActionResult> ActualizarRol(
+        int id,
+        [FromBody] ActualizarRolDto dto,
+        CancellationToken ct)
+    {
+        await _service.ActualizarRolAsync(id, dto, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/suspender")]
+    public async Task<IActionResult> Suspender(int id, CancellationToken ct)
+    {
+        await _service.SuspenderAsync(id, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/activar")]
+    public async Task<IActionResult> Activar(int id, CancellationToken ct)
+    {
+        await _service.ActivarAsync(id, ct);
+        return NoContent();
+    }
 }

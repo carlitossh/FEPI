@@ -7,6 +7,7 @@ export type EstadoConv =
 
 export interface Convenio {
   id: string;
+  rawId: number;
   tipo: string;
   monto: number | null;
   justificacion: string;

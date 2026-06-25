@@ -204,7 +204,7 @@ public class BitacoraService : IBitacoraService
         }
 
         var notaCreada = await _context.BitacoraNotas
-    .Include(n => n.Firmas)
+    .Include(n => n.Firmas).ThenInclude(f => f.Usuario)
     .FirstAsync(n => n.Id == nota.Id, ct);
 
 return MapNotaDto(notaCreada);
@@ -216,7 +216,7 @@ return MapNotaDto(notaCreada);
     CancellationToken ct = default)
 {
     var nota = await _context.BitacoraNotas
-        .Include(n => n.Firmas)
+        .Include(n => n.Firmas).ThenInclude(f => f.Usuario)
         .FirstOrDefaultAsync(n => n.Id == notaId, ct)
         ?? throw new InvalidOperationException("Nota no encontrada.");
 
@@ -266,6 +266,62 @@ return MapNotaDto(notaCreada);
         return notas.Select(MapNotaDto).ToList();
     }
 
+    public async Task<List<BitacoraEventoDto>> ObtenerEventosAsync(
+    int bitacoraId,
+    CancellationToken ct = default)
+{
+    var notas = await _context.BitacoraNotas
+        .Include(n => n.Firmas)
+        .Where(n => n.BitacoraId == bitacoraId)
+        .Select(n => new BitacoraEventoDto(
+            n.Id,
+            n.Folio.ToString("0000"),
+            n.TipoRegistro.ToString(),
+            n.FechaRegistro,
+            n.Asunto,
+            n.Contenido,
+            $"{n.Firmas.Count(f => f.Firmado)}/3",
+            n.FolioVinculadoId != null ? n.FolioVinculadoId.ToString() : null
+        ))
+        .ToListAsync(ct);
+
+    var minutas = await _context.BitacoraMinutas
+        .Where(m => m.BitacoraId == bitacoraId)
+        .Select(m => new BitacoraEventoDto(
+            m.Id,
+            "MIN-" + m.Id.ToString("0000"),
+            "Minuta",
+            m.Fecha.ToDateTime(TimeOnly.MinValue),
+            "Minuta de reunión",
+            m.ContenidoAcuerdos,
+            "—",
+            null
+        ))
+        .ToListAsync(ct);
+
+    var incidencias = await _context.BitacoraIncidencias
+        .Where(i => i.BitacoraId == bitacoraId)
+        .Select(i => new BitacoraEventoDto(
+            i.Id,
+            "INC-" + i.Id.ToString("0000"),
+            "Incidencia",
+            i.FechaEvento.ToDateTime(TimeOnly.MinValue),
+            i.Descripcion.Length > 60
+                ? i.Descripcion.Substring(0, 60) + "..."
+                : i.Descripcion,
+            i.Descripcion,
+            "—",
+            i.NotaGeneradaId != null ? i.NotaGeneradaId.ToString() : null
+        ))
+        .ToListAsync(ct);
+
+    return notas
+        .Concat(minutas)
+        .Concat(incidencias)
+        .OrderByDescending(e => e.Fecha)
+        .ThenByDescending(e => e.Id)
+        .ToList();
+}
     public async Task CrearMinutaAsync(
         CrearMinutaDto dto,
         CancellationToken ct = default)
@@ -368,6 +424,7 @@ return MapNotaDto(notaCreada);
         n.Cerrada,
         n.Firmas.Select(f => new FirmaDto(
             f.UsuarioId,
+            f.Usuario?.Nombre ?? "—",
             f.RolFirmante,
             f.EsEmisor,
             f.Firmado,

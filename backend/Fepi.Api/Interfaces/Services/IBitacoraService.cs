@@ -11,4 +11,7 @@ public interface IBitacoraService
     Task CrearMinutaAsync(CrearMinutaDto dto, CancellationToken ct = default);
     Task<int> CrearIncidenciaAsync(CrearIncidenciaDto dto, CancellationToken ct = default);
     Task<BitacoraNotaDto> GenerarNotaDesdeIncidenciaAsync(GenerarNotaDesdeIncidenciaDto dto, CancellationToken ct = default);
+    Task<List<BitacoraEventoDto>> ObtenerEventosAsync(
+    int bitacoraId,
+    CancellationToken ct = default);
 }

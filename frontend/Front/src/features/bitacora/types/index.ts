@@ -14,6 +14,15 @@ export interface NotaBitacora {
   asunto: string;
   contenido: string;
   firmas: FirmasBitacora;
+  firmasDetalle?: FirmaDetalle[];
   folioRef: string | null;
   foto?: boolean;
+}
+
+export interface FirmaDetalle {
+  rol: string;
+  usuarioId: number;
+  nombreUsuario: string;
+  firmado: boolean;
+  fechaFirma: string | null;
 }

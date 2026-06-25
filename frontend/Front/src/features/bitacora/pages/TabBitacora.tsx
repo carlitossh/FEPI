@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
@@ -12,7 +12,6 @@ import { ModalNota } from "../components/ModalNota";
 import { ModalMinuta } from "../components/ModalMinuta";
 import { ModalIncidencia } from "../components/ModalIncidencia";
 import { ModalSolicitud } from "../components/ModalSolicitud";
-import { contarFirmas } from "../../../imports/contarFirmas";
 import {
   ink,
   paper2,
@@ -26,12 +25,17 @@ import {
   folio,
   muted,
 } from "../../../styles/theme";
-import type { NotaBitacora } from "../types";
+import type { FirmasBitacora, NotaBitacora, TipoNota } from "../types";
 import { bitacoraService } from "../services/bitacoraService";
 
 interface TabBitacoraProps {
   rol: string;
 }
+
+type EventoBitacora = NotaBitacora & {
+  firmasTexto: string;
+  esFirmable: boolean;
+};
 
 const CONTRATO_ID = 1;
 const BITACORA_ID = 1;
@@ -44,26 +48,13 @@ const RolSistemaApi = {
 } as const;
 
 function rolApiDesdeRol(rol: string) {
-  if (rol === "Superintendente") return RolSistemaApi.Superintendente;
   if (rol === "Residente") return RolSistemaApi.Residencia;
+  if (rol === "Superintendente") return RolSistemaApi.Superintendente;
   if (rol === "Supervisor") return RolSistemaApi.SupervisorExterno;
   return RolSistemaApi.Superintendente;
 }
 
-function mapTipoNota(tipo: number | string): NotaBitacora["tipo"] {
-  if (typeof tipo === "string") return tipo as NotaBitacora["tipo"];
-
-  const tipos: Record<number, NotaBitacora["tipo"]> = {
-    1: "Apertura",
-    2: "Nota",
-    3: "Minuta",
-    4: "Incidencia",
-  };
-
-  return tipos[tipo] ?? "Nota";
-}
-
-function mapFirmas(firmas: any[] | undefined) {
+function mapFirmas(firmas: any[] | undefined): FirmasBitacora {
   const base = {
     superintendente: false,
     residente: false,
@@ -73,23 +64,58 @@ function mapFirmas(firmas: any[] | undefined) {
   if (!firmas) return base;
 
   for (const f of firmas) {
-    if (f.rolFirmante === 3) {
-      base.superintendente = !!f.firmado;
-    }
+    const rolFirmante = Number(f.rol ?? f.rolFirmante);
+    const firmado = Boolean(f.firmado);
 
-    if (f.rolFirmante === 2) {
-      base.residente = !!f.firmado;
-    }
-
-    if (f.rolFirmante === 4) {
-      base.supervisor = !!f.firmado;
-    }
+    if (rolFirmante === 3) base.superintendente = firmado;
+    if (rolFirmante === 2) base.residente = firmado;
+    if (rolFirmante === 4) base.supervisor = firmado;
   }
 
   return base;
 }
 
-function mapNota(n: any): NotaBitacora {
+function exportarCSV(eventos: EventoBitacora[]) {
+  const headers = ["Folio", "Tipo", "Fecha", "Asunto", "Firmas", "Folio ref."];
+  const rows = eventos.map((e) => [
+    e.folio, e.tipo, e.fecha, `"${e.asunto.replace(/"/g, '""')}"`, e.firmasTexto, e.folioRef ?? "",
+  ]);
+  const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "bitacora.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function contarFirmasLocal(firmas: FirmasBitacora) {
+  const total = [
+    firmas.superintendente,
+    firmas.residente,
+    firmas.supervisor,
+  ].filter(Boolean).length;
+
+  return `${total}/3`;
+}
+
+function mapTipoNota(tipo: number | string): TipoNota {
+  if (typeof tipo === "string") return tipo as TipoNota;
+
+  const tipos: Record<number, TipoNota> = {
+    1: "Apertura",
+    2: "Nota",
+    3: "Minuta",
+    4: "Incidencia",
+  };
+
+  return tipos[tipo] ?? "Nota";
+}
+
+function mapNota(n: any): EventoBitacora {
+  const firmas = mapFirmas(n.firmas ?? n.Firmas);
+
   return {
     id: n.id,
     folio: String(n.folio).padStart(4, "0"),
@@ -99,19 +125,58 @@ function mapNota(n: any): NotaBitacora {
       : "—",
     asunto: n.asunto,
     contenido: n.contenido,
-    firmas: mapFirmas(n.firmas),
+    firmas,
+    firmasTexto: contarFirmasLocal(firmas),
+    esFirmable: true,
     folioRef: n.folioVinculadoId ? String(n.folioVinculadoId) : null,
+    firmasDetalle:
+  n.firmas?.map((f: any) => ({
+    rol:
+      Number(f.rol ?? f.rolFirmante) === 2
+        ? "Residente"
+        : Number(f.rol ?? f.rolFirmante) === 3
+        ? "Superintendente"
+        : Number(f.rol ?? f.rolFirmante) === 4
+        ? "Supervisión"
+        : "Otro",
+    usuarioId: f.usuarioId,
+    nombreUsuario: f.nombreUsuario ?? "—",
+    firmado: f.firmado,
+    fechaFirma: f.fechaFirma,
+  })) ?? [],
+  };
+}
+
+function mapEvento(e: any): EventoBitacora {
+  const tipo = e.tipo as TipoNota;
+  const esFirmable = tipo === "Nota" || tipo === "Apertura";
+
+  return {
+    id: e.id,
+    folio: e.folio,
+    tipo,
+    fecha: e.fecha ? new Date(e.fecha).toLocaleDateString("es-MX") : "—",
+    asunto: e.asunto,
+    contenido: e.contenido,
+    firmas: {
+      superintendente: false,
+      residente: false,
+      supervisor: false,
+    },
+    firmasTexto: e.firmas ?? "—",
+    esFirmable,
+    folioRef: e.folioRef ?? null,
   };
 }
 
 export function TabBitacora({ rol }: TabBitacoraProps) {
-  const [notas, setNotas] = useState<NotaBitacora[]>([]);
+  const [eventos, setEventos] = useState<EventoBitacora[]>([]);
   const [modalTipo, setModalTipo] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("Todos");
   const [abierta, setAbierta] = useState(true);
   const [showApertura, setShowApertura] = useState(false);
-  const [detalle, setDetalle] = useState<NotaBitacora | null>(null);
+  const [detalle, setDetalle] = useState<EventoBitacora | null>(null);
 
   const puedeCrearNota = ["Residente", "Supervisor", "Superintendente"].includes(rol);
   const puedeCrearMinuta = rol === "Supervisor";
@@ -126,59 +191,63 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
       : rol === "Supervisor"
       ? "supervisor"
       : null;
-      
-async function cargarNotas() {
-  try {
-    const data = await bitacoraService.buscarNotas(BITACORA_ID);
-    setNotas(data.map(mapNota));
-    setAbierta(true);
-  } catch (error) {
-    console.error("Error cargando notas:", error);
-    setNotas([]);
-    setAbierta(true); // déjalo true por ahora
+
+  async function cargarEventos() {
+    try {
+      const data = await bitacoraService.buscarEventos(BITACORA_ID);
+      setEventos(data.map(mapEvento));
+      setAbierta(true);
+    } catch (error) {
+      console.error("Error cargando eventos:", error);
+      setEventos([]);
+      setAbierta(true);
+    }
   }
-}
+
+  async function abrirDetalle(evento: EventoBitacora) {
+    if (evento.esFirmable) {
+      const notas = await bitacoraService.buscarNotas(BITACORA_ID);
+      const nota = notas.find((n: any) => n.id === evento.id);
+
+      if (nota) {
+        setDetalle(mapNota(nota));
+        return;
+      }
+    }
+
+    setDetalle(evento);
+  }
+
+  async function handleFirmar(nota: EventoBitacora, actor: keyof FirmasBitacora) {
+    try {
+      await bitacoraService.firmarNota(nota.id, {
+        usuarioId: USUARIO_ID,
+        rol: rolApiDesdeRol(rol),
+      });
+
+      await cargarEventos();
+      await abrirDetalle(nota);
+    } catch (error) {
+      console.error("Error firmando nota:", error);
+      alert("No se pudo firmar la nota. Revisa consola o backend.");
+    }
+  }
 
   useEffect(() => {
-    cargarNotas();
+    cargarEventos();
   }, []);
 
-  const filtradas = notas
-    .filter((n) => filtroTipo === "Todos" || n.tipo === filtroTipo)
+  const filtradas = eventos
+    .filter((e) => filtroTipo === "Todos" || e.tipo === filtroTipo)
     .filter(
-      (n) =>
+      (e) =>
         busqueda === "" ||
-        n.asunto.toLowerCase().includes(busqueda.toLowerCase()) ||
-        n.folio.includes(busqueda)
+        e.asunto.toLowerCase().includes(busqueda.toLowerCase()) ||
+        e.folio.includes(busqueda)
     );
 
-async function handleFirmar(nota: NotaBitacora, actor: string) {
-  try {
-    await bitacoraService.firmarNota(nota.id, {
-      usuarioId: USUARIO_ID,
-      rol: rolApiDesdeRol(rol),
-    });
-
-await cargarNotas();
-
-setDetalle((prev) => {
-  if (!prev) return null;
-
-  return {
-    ...prev,
-    firmas: {
-      ...prev.firmas,
-      [actor]: true,
-    },
-  };
-});
-  } catch (error) {
-    console.error("Error firmando nota:", error);
-    alert("No se pudo firmar la nota. Revisa consola o backend.");
-  }
-}
   return (
-        <div>
+    <div>
       {!abierta && (
         <div
           style={{
@@ -193,7 +262,7 @@ setDetalle((prev) => {
           }}
         >
           <div style={{ fontSize: 13, color: observado, fontWeight: 600 }}>
-            La bitácora no ha sido abierta. No es posible crear notas.
+            La bitácora no ha sido abierta. No es posible crear registros.
           </div>
 
           {rol === "Residente" && (
@@ -272,6 +341,26 @@ setDetalle((prev) => {
               <option key={o}>{o}</option>
             ))}
           </select>
+
+          <button
+            onClick={() => exportarCSV(filtradas)}
+            title="Exportar selección"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              border: `1px solid ${rule}`,
+              background: paper2,
+              borderRadius: 3,
+              padding: "7px 10px",
+              fontSize: 12,
+              color: muted,
+              cursor: "pointer",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
+          >
+            <Download size={13} /> Exportar
+          </button>
         </div>
       </div>
 
@@ -281,26 +370,12 @@ setDetalle((prev) => {
 
           <tbody>
             {filtradas.map((b, i) => {
-const firmas = b.firmas ?? {
-  superintendente: false,
-  residente: false,
-  supervisor: false,
-};
-
-
-const firmadas = [
-  firmas.superintendente,
-  firmas.residente,
-  firmas.supervisor,
-].filter(Boolean).length;
-
-const fCount = `${firmadas}/3`;
-              const todas = fCount === "3/3";
-              const ninguna = fCount === "0/3";
+              const todas = b.firmasTexto === "3/3";
+              const ninguna = b.firmasTexto === "0/3";
 
               return (
                 <tr
-                  key={b.id}
+                  key={`${b.tipo}-${b.id}`}
                   style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
                   onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
                   onMouseLeave={(el) =>
@@ -347,17 +422,17 @@ const fCount = `${firmadas}/3`;
                       fontSize: 11.5,
                     }}
                   >
-                    {b.tipo === "Incidencia" ? (
-                      <span style={{ color: muted }}>—</span>
-                    ) : (
+                    {b.esFirmable ? (
                       <span
                         style={{
                           color: todas ? aprobado : ninguna ? folio : observado,
                           fontWeight: 600,
                         }}
                       >
-                        {fCount} {!todas && "⏳"}
+                        {b.firmasTexto} {!todas && "⏳"}
                       </span>
+                    ) : (
+                      <span style={{ color: muted }}>—</span>
                     )}
                   </td>
 
@@ -375,7 +450,7 @@ const fCount = `${firmadas}/3`;
 
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
                     <button
-                      onClick={() => setDetalle(b)}
+                      onClick={() => abrirDetalle(b)}
                       style={{
                         fontSize: 11.5,
                         color: obra,
@@ -399,7 +474,7 @@ const fCount = `${firmadas}/3`;
 
       {detalle && (
         <Modal
-          title={`Nota ${detalle.folio} — ${detalle.asunto}`}
+          title={`${detalle.tipo} ${detalle.folio} — ${detalle.asunto}`}
           onClose={() => setDetalle(null)}
           width={500}
         >
@@ -440,30 +515,18 @@ const fCount = `${firmadas}/3`;
             </div>
           )}
 
-          {detalle.tipo !== "Incidencia" && (
+          {detalle.esFirmable && (
             <div style={{ marginBottom: 20 }}>
               <SectionLabel>Firmas</SectionLabel>
 
               <div style={{ display: "flex", gap: 8 }}>
                 {[
-                  { key: "superintendente", label: "Superintendente" },
-                  { key: "residente", label: "Residente" },
-                  { key: "supervisor", label: "Supervisión" },
+                  { key: "superintendente" as const, label: "Superintendente" },
+                  { key: "residente" as const, label: "Residente" },
+                  { key: "supervisor" as const, label: "Supervisión" },
                 ].map((s) => {
-                  const firmas = detalle.firmas ?? {
-  superintendente: false,
-  residente: false,
-  supervisor: false,
-};
-
-const firmasDetalle = detalle.firmas ?? {
-  superintendente: false,
-  residente: false,
-  supervisor: false,
-};
-
-const done = firmasDetalle[s.key as keyof typeof firmasDetalle];
-const esMiTurno = actorFirma === s.key && !done;
+                  const done = detalle.firmas[s.key];
+                  const esMiTurno = actorFirma === s.key && !done;
 
                   return (
                     <div
@@ -490,18 +553,64 @@ const esMiTurno = actorFirma === s.key && !done;
             </div>
           )}
 
+{detalle.firmasDetalle && detalle.firmasDetalle.length > 0 && (
+  <div style={{ marginBottom: 20 }}>
+    <SectionLabel>Historial de firmas</SectionLabel>
+
+    {[...detalle.firmasDetalle]
+      .filter((f) => f.firmado)
+      .sort((a, b) => {
+        const fa = a.fechaFirma ? new Date(a.fechaFirma).getTime() : 0;
+        const fb = b.fechaFirma ? new Date(b.fechaFirma).getTime() : 0;
+        return fa - fb;
+      })
+      .map((f, index) => (
+        <div
+          key={`${f.rol}-${index}`}
+          style={{
+            border: `1px solid ${rule}`,
+            borderRadius: 4,
+            padding: "10px 12px",
+            marginBottom: 8,
+            background: "#FAF8F2",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 600,
+              color: aprobado,
+              marginBottom: 4,
+            }}
+          >
+            {index + 1}. {f.rol}
+          </div>
+
+          <div style={{ fontSize: 12, color: muted }}>
+            {f.nombreUsuario}
+          </div>
+
+          <div style={{ fontSize: 12, color: muted }}>
+            {f.fechaFirma
+              ? new Date(f.fechaFirma).toLocaleString("es-MX")
+              : "Sin fecha"}
+          </div>
+        </div>
+      ))}
+  </div>
+)}
+
           {detalle.tipo === "Incidencia" && (
             <PrimaryBtn
               onClick={async () => {
                 await bitacoraService.generarNotaDesdeIncidencia({
                   incidenciaId: detalle.id,
-                  tipoNotaCatalogoId: 1,
+                  tipoNotaCatalogoId: 2,
                   usuarioEmisorId: USUARIO_ID,
                   rolEmisor: rolApiDesdeRol(rol),
                 });
 
                 setDetalle(null);
-                await cargarNotas();
+                await cargarEventos();
               }}
               style={{ width: "100%", marginBottom: 10 }}
             >
@@ -510,35 +619,29 @@ const esMiTurno = actorFirma === s.key && !done;
           )}
         </Modal>
       )}
+      
 
       {showApertura && (
         <ModalAperturaBitacora
           onClose={() => setShowApertura(false)}
-onAbrir={async (data) => {
-  try {
-    console.log("Abriendo bitácora", data);
+          onAbrir={async (data) => {
+            await bitacoraService.abrirBitacora({
+              contratoId: CONTRATO_ID,
+              nombreContrato: data.descripcion,
+              numeroContrato: `Contrato-${CONTRATO_ID}`,
+              tipoContrato: "ObraPublica",
+              dependenciaContratante: "Dependencia de prueba",
+              contratistaEmpresa: "Contratista de prueba",
+              residenteNombre: "Residente",
+              supervisorDesignadoNombre: "Supervisor",
+              superintendenteNombre: "Superintendente",
+              fechaAperturaFormal: data.fecha,
+            });
 
-    await bitacoraService.abrirBitacora({
-      contratoId: CONTRATO_ID,
-      nombreContrato: data.descripcion,
-      numeroContrato: `Contrato-${CONTRATO_ID}`,
-      tipoContrato: "ObraPublica",
-      dependenciaContratante: "Dependencia de prueba",
-      contratistaEmpresa: "Contratista de prueba",
-      residenteNombre: "Residente",
-      supervisorDesignadoNombre: "Supervisor",
-      superintendenteNombre: "Superintendente",
-      fechaAperturaFormal: data.fecha,
-    });
-
-    setAbierta(true);
-    setShowApertura(false);
-    await cargarNotas();
-  } catch (error) {
-    console.error(error);
-    alert("No se pudo abrir la bitácora. Revisa la consola.");
-  }
-}}
+            setAbierta(true);
+            setShowApertura(false);
+            await cargarEventos();
+          }}
         />
       )}
 
@@ -546,28 +649,23 @@ onAbrir={async (data) => {
         <ModalNota
           tipo="Nota"
           onClose={() => setModalTipo(null)}
-          siguienteFolio={`${String(notas.length + 1).padStart(4, "0")}`}
-onGuardar={async (data) => {
-  try {
-    console.log("Creando nota:", data);
+          siguienteFolio={`${String(
+            eventos.filter((e) => e.tipo === "Nota").length + 1
+          ).padStart(4, "0")}`}
+          onGuardar={async (data) => {
+            await bitacoraService.crearNota({
+              bitacoraId: BITACORA_ID,
+              tipoNotaCatalogoId: 2,
+              asunto: data.asunto,
+              contenido: data.contenido,
+              folioVinculadoId: data.folioRef ? Number(data.folioRef) : null,
+              usuarioEmisorId: USUARIO_ID,
+              rolEmisor: rolApiDesdeRol(rol),
+            });
 
-    await bitacoraService.crearNota({
-      bitacoraId: BITACORA_ID,
-      tipoNotaCatalogoId: 2,
-      asunto: data.asunto,
-      contenido: data.contenido,
-      folioVinculadoId: data.folioRef ? Number(data.folioRef) : null,
-      usuarioEmisorId: USUARIO_ID,
-      rolEmisor: rolApiDesdeRol(rol),
-    });
-
-    setModalTipo(null);
-    await cargarNotas();
-  } catch (error) {
-    console.error("Error creando nota:", error);
-    alert("No se pudo crear la nota. Revisa consola y backend.");
-  }
-}}
+            setModalTipo(null);
+            await cargarEventos();
+          }}
         />
       )}
 
@@ -587,7 +685,7 @@ onGuardar={async (data) => {
             });
 
             setModalTipo(null);
-            await cargarNotas();
+            await cargarEventos();
           }}
         />
       )}
@@ -605,7 +703,7 @@ onGuardar={async (data) => {
             });
 
             setModalTipo(null);
-            await cargarNotas();
+            await cargarEventos();
           }}
         />
       )}
@@ -625,7 +723,7 @@ onGuardar={async (data) => {
             });
 
             setModalTipo(null);
-            await cargarNotas();
+            await cargarEventos();
           }}
         />
       )}

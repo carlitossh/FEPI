@@ -17,7 +17,7 @@ public record CrearNotaBitacoraDto(int BitacoraId, int TipoNotaCatalogoId, strin
     int? FolioVinculadoId, int UsuarioEmisorId, RolSistema RolEmisor);
 public record FirmarNotaDto(int UsuarioId, RolSistema Rol);
 public record BitacoraNotaDto(int Id, int Folio, TipoNotaBitacora TipoRegistro, string Asunto, string Contenido, DateTime FechaRegistro, bool Cerrada, List<FirmaDto> Firmas);
-public record FirmaDto(int UsuarioId, RolSistema Rol, bool EsEmisor, bool Firmado, DateTime? FechaFirma);
+public record FirmaDto(int UsuarioId, string NombreUsuario, RolSistema Rol, bool EsEmisor, bool Firmado, DateTime? FechaFirma);
 public record CrearMinutaDto(int BitacoraId, DateOnly Fecha, string Lugar, string ContenidoAcuerdos, List<string> Participantes);
 public record CrearIncidenciaDto(int BitacoraId, DateOnly FechaEvento, string Descripcion, string UrlFotografia, int ActorRegistroId);
 public record GenerarNotaDesdeIncidenciaDto(int IncidenciaId, int TipoNotaCatalogoId, int UsuarioEmisorId, RolSistema RolEmisor);
@@ -63,6 +63,10 @@ public record ActualizarProgramaObraDto(List<ProgramaObraInputDto> ProgramaObra)
 // SV-08
 public record UsuarioDto(int Id, string Nombre, string Correo, bool Activo);
 public record UsuarioContratoDto(int ContratoId, RolSistema Rol);
+public record UsuarioContratoDetalleDto(int Id, string Nombre, string Correo, RolSistema Rol, bool Activo);
+public record InvitarUsuarioContratoDto(string Nombre, string Correo, RolSistema Rol);
+public record ActualizarRolDto(int ContratoId, RolSistema Rol);
+public record RegistrarCierreDto(DateOnly FechaEntrega, string EstadoObraDescripcion, string EstadoGarantiasDescripcion, List<string> UrlsEvidencia);
 
 // SV-10
 public record DashboardContratoDto(int ContratoId, string NumeroContrato, decimal AvanceFisicoPct, decimal AvanceProgramadoPct,

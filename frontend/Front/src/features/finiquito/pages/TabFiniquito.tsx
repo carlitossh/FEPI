@@ -1,40 +1,102 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, CheckCircle, Upload } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { SectionLabel } from "../../../components/SectionLabel";
 import { TextInput } from "../../../components/TextInput";
+import { TextArea } from "../../../components/TextArea";
 import { Modal } from "../../../components/Modal";
 import { EstadoBadge } from "../../../components/EstadoBadge";
 import { AlertsPanel } from "../../../components/AlertsPanel";
-import { mockContrato } from "../../dashboard/mock/mockContrato";
+import { finiquitoService } from "../services/finiquitoService";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
   ink, paper2, rule, folio, obra, aprobado, aprobadoSoft,
   observado, observadoSoft, pagado, muted,
 } from "../../../styles/theme";
 
+const CONTRATO_ID = 1;
+
 interface TabFiniquitoProps {
   rol: string;
+}
+
+interface DatosFiniquito {
+  pagado: number;
+  pendiente: number;
+  deductivas: number;
+  retenciones: number;
+  total: number;
 }
 
 export function TabFiniquito({ rol }: TabFiniquitoProps) {
   const [showCierre, setShowCierre] = useState(false);
   const [cierreRegistrado, setCierreRegistrado] = useState(false);
-  const [finiquitoCalc, setFiniquitoCalc] = useState(false);
+  const [datos, setDatos] = useState<DatosFiniquito | null>(null);
+  const [calculando, setCalculando] = useState(false);
+  const [cierreFecha, setCierreFecha] = useState("");
+  const [cierreEstadoObra, setCierreEstadoObra] = useState("");
+  const [cierreEstadoGarantias, setCierreEstadoGarantias] = useState("");
 
   const puedeRegistrarCierre = rol === "Residente";
   const puedeVerFiniquito =
     rol === "Financiero" || rol === "Dependencia" || rol === "Residente";
 
-  const datos = {
-    pagado: 5_268_700,
-    pendiente: 1_248_300,
-    deductivas: 240_000,
-    retenciones: 524_500,
-    total: 5_268_700 + 1_248_300 - 240_000 - 524_500,
-  };
+  useEffect(() => {
+    finiquitoService
+      .calcularFiniquito(CONTRATO_ID)
+      .then((d) => {
+        setDatos({
+          pagado: d.totalPagado,
+          pendiente: d.totalPendiente,
+          deductivas: d.totalDeductivas,
+          retenciones: d.totalRetenciones,
+          total: d.montoFinal,
+        });
+        setCierreRegistrado(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleCalcular() {
+    setCalculando(true);
+    try {
+      const d = await finiquitoService.calcularFiniquito(CONTRATO_ID);
+      setDatos({
+        pagado: d.totalPagado,
+        pendiente: d.totalPendiente,
+        deductivas: d.totalDeductivas,
+        retenciones: d.totalRetenciones,
+        total: d.montoFinal,
+      });
+    } catch (e: any) {
+      alert("No se pudo calcular el finiquito: " + e.message);
+    } finally {
+      setCalculando(false);
+    }
+  }
+
+  async function handleRegistrarCierre() {
+    if (!cierreFecha || !cierreEstadoObra) {
+      alert("La fecha de entrega y el estado de obra son requeridos.");
+      return;
+    }
+    try {
+      const [dia, mes, anio] = cierreFecha.split("-");
+      const fechaISO = `${anio}-${mes}-${dia}`;
+      await finiquitoService.registrarCierre(CONTRATO_ID, {
+        fechaEntrega: fechaISO,
+        estadoObraDescripcion: cierreEstadoObra,
+        estadoGarantiasDescripcion: cierreEstadoGarantias || "Vigentes",
+        urlsEvidencia: [],
+      });
+      setCierreRegistrado(true);
+      setShowCierre(false);
+    } catch (e: any) {
+      alert("Error al registrar cierre: " + e.message);
+    }
+  }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }}>
@@ -69,7 +131,7 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
                   Cierre físico registrado
                 </div>
                 <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>
-                  Fecha de entrega: 25-jun-2026 · Documentación adjunta
+                  Documentación adjunta en expediente
                 </div>
               </div>
             </div>
@@ -106,18 +168,13 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
             >
               Finiquito del contrato
             </div>
-            {puedeVerFiniquito && !finiquitoCalc && (
-              <PrimaryBtn
-                onClick={() => {
-                  /* api.calcularFiniquito */
-                  setFiniquitoCalc(true);
-                }}
-              >
-                Calcular finiquito
+            {puedeVerFiniquito && !datos && (
+              <PrimaryBtn onClick={handleCalcular} disabled={calculando}>
+                {calculando ? "Calculando..." : "Calcular finiquito"}
               </PrimaryBtn>
             )}
           </div>
-          {finiquitoCalc ? (
+          {datos ? (
             <div>
               <div
                 style={{
@@ -218,7 +275,7 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
         </Card>
       </div>
 
-      <AlertsPanel />
+      <AlertsPanel rol={rol} contratoId={1} />
 
       {showCierre && (
         <Modal
@@ -227,37 +284,30 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
           onClose={() => setShowCierre(false)}
           width={460}
         >
-          {[
-            { key: "fecha", label: "Fecha de entrega *", placeholder: "DD-MM-YYYY" },
-            { key: "acta", label: "Número de acta *", placeholder: "Ej: ACTA-2026-001" },
-          ].map((f) => (
-            <div key={f.key} style={{ marginBottom: 14 }}>
-              <SectionLabel>{f.label}</SectionLabel>
-              <TextInput placeholder={f.placeholder} value="" onChange={() => {}} />
-            </div>
-          ))}
           <div style={{ marginBottom: 14 }}>
-            <SectionLabel>Estado de garantías al momento de entrega</SectionLabel>
-            {mockContrato.garantias.map((g) => (
-              <div
-                key={g.tipo}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "8px 12px",
-                  border: `1px solid ${rule}`,
-                  borderRadius: 3,
-                  marginBottom: 6,
-                  fontSize: 12,
-                }}
-              >
-                <span>{g.tipo}</span>
-                <span style={{ fontFamily: "JetBrains Mono", fontSize: 11.5 }}>
-                  {g.vencimiento}
-                </span>
-                <EstadoBadge estado={g.diasRestantes < 30 ? "por vencer" : "vigente"} />
-              </div>
-            ))}
+            <SectionLabel>Fecha de entrega *</SectionLabel>
+            <TextInput
+              placeholder="DD-MM-YYYY"
+              value={cierreFecha}
+              onChange={setCierreFecha}
+            />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <SectionLabel>Estado de la obra *</SectionLabel>
+            <TextArea
+              placeholder="Describe el estado físico de la obra al momento de entrega..."
+              value={cierreEstadoObra}
+              onChange={setCierreEstadoObra}
+              rows={3}
+            />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <SectionLabel>Estado de garantías</SectionLabel>
+            <TextInput
+              placeholder="Ej: Garantía de calidad vigente hasta 2027"
+              value={cierreEstadoGarantias}
+              onChange={setCierreEstadoGarantias}
+            />
           </div>
           <div style={{ marginBottom: 20 }}>
             <SectionLabel>Documentación / fotografía (requerida) *</SectionLabel>
@@ -282,11 +332,9 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
               Cancelar
             </SecondaryBtn>
             <PrimaryBtn
-              onClick={() => {
-                setCierreRegistrado(true);
-                setShowCierre(false);
-              }}
+              onClick={handleRegistrarCierre}
               style={{ flex: 1 }}
+              disabled={!cierreFecha || !cierreEstadoObra}
             >
               Registrar cierre
             </PrimaryBtn>

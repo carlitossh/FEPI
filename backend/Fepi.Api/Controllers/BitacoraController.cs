@@ -48,6 +48,14 @@ public class BitacoraController : ControllerBase
         ));
     }
 
+    [HttpGet("{bitacoraId:int}/eventos")]
+    public async Task<ActionResult<List<BitacoraEventoDto>>> ObtenerEventos(
+        int bitacoraId,
+        CancellationToken ct)
+    {
+        return Ok(await _service.ObtenerEventosAsync(bitacoraId, ct));
+    }
+
     [HttpPost("minutas")]
     public async Task<IActionResult> CrearMinuta([FromBody] CrearMinutaDto dto, CancellationToken ct)
     {

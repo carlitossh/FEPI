@@ -12,6 +12,9 @@ import { TextArea } from "../../../components/TextArea";
 import { Modal } from "../../../components/Modal";
 import { ModalNuevaEstimacion } from "../components/ModalNuevaEstimacion";
 import { ModalAddConcepto } from "../components/ModalAddConcepto";
+import { ModalVincularBitacora } from "../components/ModalVincularBitacora";
+import { bitacoraService } from "../../bitacora/services/bitacoraService";
+import type { NotaBitacora, TipoNota } from "../../bitacora/types";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
   ink,
@@ -35,7 +38,40 @@ interface TabEstimacionesProps {
 }
 
 const CONTRATO_ID = 1;
+const BITACORA_ID = 1;
 const USUARIO_ID = 1;
+
+const TIPO_NOTA_MAP: Record<number, TipoNota> = {
+  1: "Apertura",
+  2: "Nota",
+  3: "Minuta",
+  4: "Incidencia",
+};
+
+function mapNotaParaVincular(n: any): NotaBitacora {
+  const tipo: TipoNota =
+    typeof n.tipoRegistro === "string"
+      ? (n.tipoRegistro as TipoNota)
+      : TIPO_NOTA_MAP[n.tipoRegistro] ?? "Nota";
+
+  const firmasArr: any[] = n.firmas ?? [];
+  const firmas = {
+    residente: firmasArr.some((f) => Number(f.rol ?? f.rolFirmante) === 2 && f.firmado),
+    superintendente: firmasArr.some((f) => Number(f.rol ?? f.rolFirmante) === 3 && f.firmado),
+    supervisor: firmasArr.some((f) => Number(f.rol ?? f.rolFirmante) === 4 && f.firmado),
+  };
+
+  return {
+    id: n.id,
+    folio: String(n.folio).padStart(4, "0"),
+    tipo,
+    fecha: n.fechaRegistro ? new Date(n.fechaRegistro).toLocaleDateString("es-MX") : "—",
+    asunto: n.asunto,
+    contenido: n.contenido,
+    firmas,
+    folioRef: n.folioVinculadoId ? String(n.folioVinculadoId) : null,
+  };
+}
 
 function mapEstado(estado: number | string): Estimacion["estado"] {
   if (typeof estado === "string") return estado as Estimacion["estado"];
@@ -82,13 +118,13 @@ function mapDetalle(e: any): Estimacion {
         precioUnitario: c.precioUnitario,
         importe: c.importe,
       })) ?? [],
-    notasVinculadas: e.notasVinculadas ?? [],
+    notasVinculadas: e.notasVinculadasResumen ?? [],
     observaciones:
       e.observaciones?.map((o: any) => ({
         ref: "General",
         txt: o.texto,
         quien: `Usuario ${o.usuarioId}`,
-        hora: new Date(o.fechaCreacion).toLocaleString("es-MX"),
+        hora: new Date(o.fecha).toLocaleString("es-MX"),
         color: observado,
       })) ?? [],
     historial: [],
@@ -117,6 +153,8 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
   const [showRechazo, setShowRechazo] = useState(false);
   const [showPago, setShowPago] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
+  const [showVincular, setShowVincular] = useState(false);
+  const [notasBitacora, setNotasBitacora] = useState<NotaBitacora[]>([]);
 
   const [nuevaObs, setNuevaObs] = useState("");
   const [motivoRechazo, setMotivoRechazo] = useState("");
@@ -228,10 +266,16 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
   async function handlePago() {
     if (!selected || !datoPago.referencia || !datoPago.fecha || !datoPago.monto) return;
 
+    const monto = Number(datoPago.monto);
+    if (isNaN(monto) || monto <= 0) {
+      alert("El monto pagado debe ser mayor a cero.");
+      return;
+    }
+
     await estimacionesService.registrarPago(selected.id, {
       referenciaBancaria: datoPago.referencia,
       fechaPago: datoPago.fecha,
-      montoPagado: Number(datoPago.monto),
+      montoPagado: monto,
     });
 
     setDatoPago({ referencia: "", fecha: "", monto: "" });
@@ -249,6 +293,19 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
     setNuevaObs("");
     setShowObservacion(false);
 
+    await abrirEstimacion(selected.id);
+  }
+
+  async function abrirModalVincular() {
+    const data = await bitacoraService.buscarNotas(BITACORA_ID);
+    setNotasBitacora(data.map(mapNotaParaVincular));
+    setShowVincular(true);
+  }
+
+  async function handleVincular(ids: number[]) {
+    if (!selected || ids.length === 0) return;
+    await estimacionesService.vincularNotasBitacora(selected.id, ids);
+    setShowVincular(false);
     await abrirEstimacion(selected.id);
   }
 
@@ -833,17 +890,56 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               borderRadius: "0 0 4px 4px",
             }}
           >
-            <SectionLabel>Notas de bitácora vinculadas</SectionLabel>
             <div
               style={{
-                color: muted,
-                fontSize: 12,
-                textAlign: "center",
-                padding: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
               }}
             >
-              La vinculación de bitácora se conectará en el siguiente módulo.
+              <SectionLabel>Notas de bitácora vinculadas</SectionLabel>
+              {esBorrador && (
+                <SecondaryBtn onClick={abrirModalVincular}>
+                  + Vincular notas
+                </SecondaryBtn>
+              )}
             </div>
+
+            {(selected.notasVinculadas ?? []).length === 0 ? (
+              <div
+                style={{
+                  color: muted,
+                  fontSize: 12,
+                  textAlign: "center",
+                  padding: 20,
+                  border: `1px dashed ${rule}`,
+                  borderRadius: 4,
+                }}
+              >
+                Sin notas de bitácora vinculadas.
+                {esBorrador && " Usa \"+ Vincular notas\" para agregar soporte documental."}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {selected.notasVinculadas.map((resumen, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      border: `1px solid ${rule}`,
+                      borderLeft: `3px solid ${obra}`,
+                      borderRadius: 3,
+                      padding: "10px 14px",
+                      fontSize: 12.5,
+                      background: "#FAF8F2",
+                      fontFamily: "JetBrains Mono",
+                    }}
+                  >
+                    {resumen}
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         )}
 
@@ -1053,6 +1149,20 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               </div>
             </div>
 
+            <div
+              style={{
+                background: folioSoft,
+                border: `1px solid ${folio}`,
+                borderRadius: 3,
+                padding: "10px 14px",
+                marginBottom: 16,
+                fontSize: 12,
+                color: folio,
+              }}
+            >
+              Esta acción marcará la estimación como <strong>Pagada</strong> de forma definitiva.
+            </div>
+
             <div style={{ display: "flex", gap: 10 }}>
               <SecondaryBtn onClick={() => setShowPago(false)} style={{ flex: 1 }}>
                 Cancelar
@@ -1060,12 +1170,26 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               <PrimaryBtn
                 onClick={handlePago}
                 style={{ flex: 1, background: pagado }}
-                disabled={!datoPago.referencia || !datoPago.fecha || !datoPago.monto}
+                disabled={
+                  !datoPago.referencia ||
+                  !datoPago.fecha ||
+                  !datoPago.monto ||
+                  Number(datoPago.monto) <= 0
+                }
               >
                 Confirmar pago
               </PrimaryBtn>
             </div>
           </Modal>
+        )}
+
+        {showVincular && (
+          <ModalVincularBitacora
+            notas={notasBitacora}
+            vinculadas={selected.notasVinculadas ?? []}
+            onClose={() => setShowVincular(false)}
+            onVincular={handleVincular}
+          />
         )}
 
         {showHistorial && (
@@ -1305,14 +1429,17 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
   }}
   onClose={() => setShowNuevaEst(false)}
   onCrear={async (data) => {
-    const nueva = await estimacionesService.crear({
-      contratoId: CONTRATO_ID,
-      periodo: data.periodo,
-    });
-
-    setShowNuevaEst(false);
-    await cargarEstimaciones();
-    await abrirEstimacion(nueva.id);
+    try {
+      const nueva = await estimacionesService.crear({
+        contratoId: CONTRATO_ID,
+        periodo: data.periodo,
+      });
+      setShowNuevaEst(false);
+      await cargarEstimaciones();
+      await abrirEstimacion(nueva.id);
+    } catch (err: any) {
+      alert("No se pudo crear la estimación: " + (err?.message ?? "Error desconocido"));
+    }
   }}
 />
       )}

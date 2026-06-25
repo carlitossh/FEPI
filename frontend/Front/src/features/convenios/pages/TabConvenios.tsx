@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
@@ -9,7 +9,7 @@ import { Modal } from "../../../components/Modal";
 import { ModalNuevoConvenio } from "../components/ModalNuevoConvenio";
 import { ModalDictamen } from "../components/ModalDictamen";
 import { ModalResolucion } from "../components/ModalResolucion";
-import { mockConvenios } from "../mock/mockConvenios";
+import { conveniosService } from "../services/conveniosService";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
   ink, paper2, rule, obra, obraSoft, aprobado, aprobadoSoft,
@@ -17,12 +17,65 @@ import {
 } from "../../../styles/theme";
 import type { Convenio, EstadoConv } from "../types";
 
+const CONTRATO_ID = 1;
+const USUARIO_ID = 1;
+
+const ESTADO_MAP: Record<number, EstadoConv> = {
+  1: "En evaluación",
+  2: "Dictaminada",
+  3: "Promovida",
+  4: "Aprobado",
+  5: "Rechazado",
+};
+
+const TIPO_MAP: Record<number, string> = {
+  1: "Incremento de monto",
+  2: "Ampliación de plazo",
+  3: "Ajuste de catálogo",
+};
+
+const TIPO_BACKEND: Record<string, number> = {
+  "Incremento de monto": 1,
+  "Reducción de monto": 1,
+  "Ampliación de plazo": 2,
+  "Ajuste de catálogo": 3,
+};
+
+function mapResumen(c: any): Convenio {
+  return {
+    id: `CM-${String(c.id).padStart(3, "0")}`,
+    rawId: c.id,
+    tipo: TIPO_MAP[c.tipo] ?? "Convenio",
+    monto: c.montoSolicitado ?? null,
+    justificacion: "",
+    estado: ESTADO_MAP[c.estado] ?? "En evaluación",
+    dictamen: null,
+    dictamenJust: "",
+    pasos: [],
+  };
+}
+
+function mapDetalle(c: any): Convenio {
+  return {
+    id: `CM-${String(c.id).padStart(3, "0")}`,
+    rawId: c.id,
+    tipo: TIPO_MAP[c.tipo] ?? "Convenio",
+    monto: c.montoSolicitado ?? null,
+    justificacion: c.justificacion ?? "",
+    estado: ESTADO_MAP[c.estado] ?? "En evaluación",
+    dictamen: c.revision ? (c.revision.decision === 1 ? "Procedente" : "No procedente") : null,
+    dictamenJust: c.revision?.justificacion ?? "",
+    pasos: [],
+  };
+}
+
 interface TabConveniosProps {
   rol: string;
 }
 
 export function TabConvenios({ rol }: TabConveniosProps) {
-  const [convenios, setConvenios] = useState<Convenio[]>(mockConvenios);
+  const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showNuevo, setShowNuevo] = useState(false);
   const [detalle, setDetalle] = useState<Convenio | null>(null);
   const [showDictamen, setShowDictamen] = useState(false);
@@ -33,8 +86,36 @@ export function TabConvenios({ rol }: TabConveniosProps) {
   const puedePromover = rol === "Residente";
   const puedeResolver = rol === "Dependencia";
 
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  async function cargar() {
+    setLoading(true);
+    try {
+      const data = await conveniosService.getConvenios(CONTRATO_ID);
+      setConvenios(data.map(mapResumen));
+    } catch (e: any) {
+      console.error("Error cargando convenios:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verDetalle(conv: Convenio) {
+    try {
+      const data = await conveniosService.getConvenio(conv.rawId);
+      setDetalle(mapDetalle(data));
+    } catch {
+      setDetalle(conv);
+    }
+  }
+
+  const variacionActual = convenios.length > 0
+    ? (convenios[0] as any).variacionAcumuladaPorcentaje ?? 18
+    : 18;
+
   const pasoActivo = (conv: Convenio): number => {
-    if (!conv) return 0;
     const map: Record<string, number> = {
       "En evaluación": 0,
       Dictaminada: 1,
@@ -45,12 +126,14 @@ export function TabConvenios({ rol }: TabConveniosProps) {
     return map[conv.estado] ?? 0;
   };
 
-  function handlePromover(id: string) {
-    // api.promoverConvenio(id)
-    setConvenios((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, estado: "Promovida" as EstadoConv } : c))
-    );
-    setDetalle((prev) => (prev ? { ...prev, estado: "Promovida" as EstadoConv } : null));
+  async function handlePromover(rawId: number) {
+    try {
+      await conveniosService.promoverConvenio(rawId, { residenteId: USUARIO_ID });
+      await cargar();
+      setDetalle(null);
+    } catch (e: any) {
+      alert("Error al promover: " + e.message);
+    }
   }
 
   return (
@@ -72,76 +155,90 @@ export function TabConvenios({ rol }: TabConveniosProps) {
       </div>
 
       <Card style={{ overflow: "hidden", marginBottom: 24 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-          <TableHeader cols={["ID", "Tipo", "Monto", "Estado", "Dictamen", ""]} />
-          <tbody>
-            {convenios.map((c, i) => (
-              <tr
-                key={c.id}
-                style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
-                onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
-                onMouseLeave={(el) =>
-                  (el.currentTarget.style.background = i % 2 === 1 ? "#FAF8F2" : paper2)
-                }
-              >
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    borderBottom: `1px solid ${rule}`,
-                    fontFamily: "JetBrains Mono",
-                    fontWeight: 600,
-                    color: obra,
-                  }}
-                >
-                  {c.id}
-                </td>
-                <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
-                  {c.tipo}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    borderBottom: `1px solid ${rule}`,
-                    fontFamily: "JetBrains Mono",
-                    fontSize: 11.5,
-                  }}
-                >
-                  {c.monto ? fmtMXN(c.monto) : "—"}
-                </td>
-                <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
-                  <EstadoBadge estado={c.estado} />
-                </td>
-                <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}`, fontSize: 12 }}>
-                  {c.dictamen || "—"}
-                </td>
-                <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
-                  <button
-                    onClick={() => setDetalle(c)}
-                    style={{
-                      fontSize: 11.5,
-                      color: obra,
-                      background: "none",
-                      border: `1px solid ${rule}`,
-                      borderRadius: 3,
-                      padding: "4px 10px",
-                      cursor: "pointer",
-                      fontFamily: "'IBM Plex Sans', sans-serif",
-                    }}
+        {loading ? (
+          <div style={{ padding: "24px", textAlign: "center", color: muted, fontSize: 12.5 }}>
+            Cargando convenios...
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <TableHeader cols={["ID", "Tipo", "Monto", "Estado", "Dictamen", ""]} />
+            <tbody>
+              {convenios.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: muted }}>
+                    No hay convenios registrados.
+                  </td>
+                </tr>
+              ) : (
+                convenios.map((c, i) => (
+                  <tr
+                    key={c.rawId}
+                    style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
+                    onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
+                    onMouseLeave={(el) =>
+                      (el.currentTarget.style.background = i % 2 === 1 ? "#FAF8F2" : paper2)
+                    }
                   >
-                    Ver →
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        borderBottom: `1px solid ${rule}`,
+                        fontFamily: "JetBrains Mono",
+                        fontWeight: 600,
+                        color: obra,
+                      }}
+                    >
+                      {c.id}
+                    </td>
+                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                      {c.tipo}
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        borderBottom: `1px solid ${rule}`,
+                        fontFamily: "JetBrains Mono",
+                        fontSize: 11.5,
+                      }}
+                    >
+                      {c.monto ? fmtMXN(c.monto) : "—"}
+                    </td>
+                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                      <EstadoBadge estado={c.estado} />
+                    </td>
+                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}`, fontSize: 12 }}>
+                      {c.dictamen || "—"}
+                    </td>
+                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                      <button
+                        onClick={() => verDetalle(c)}
+                        style={{
+                          fontSize: 11.5,
+                          color: obra,
+                          background: "none",
+                          border: `1px solid ${rule}`,
+                          borderRadius: 3,
+                          padding: "4px 10px",
+                          cursor: "pointer",
+                          fontFamily: "'IBM Plex Sans', sans-serif",
+                        }}
+                      >
+                        Ver →
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </Card>
 
       {/* Flujo de aprobación */}
       {convenios
         .filter((c) => ["En evaluación", "Dictaminada", "Promovida"].includes(c.estado))
         .map((c) => (
-          <div key={c.id} style={{ marginBottom: 24 }}>
+          <div key={c.rawId} style={{ marginBottom: 24 }}>
             <div
               style={{
                 fontSize: 12,
@@ -219,21 +316,23 @@ export function TabConvenios({ rol }: TabConveniosProps) {
               {detalle.monto ? fmtMXN(detalle.monto) : "Sin impacto económico"}
             </div>
           </div>
-          <div style={{ marginBottom: 14 }}>
-            <SectionLabel>Justificación</SectionLabel>
-            <div
-              style={{
-                background: "#FAF8F2",
-                border: `1px solid ${rule}`,
-                borderRadius: 3,
-                padding: "10px 14px",
-                fontSize: 12.5,
-                lineHeight: 1.6,
-              }}
-            >
-              {detalle.justificacion}
+          {detalle.justificacion && (
+            <div style={{ marginBottom: 14 }}>
+              <SectionLabel>Justificación</SectionLabel>
+              <div
+                style={{
+                  background: "#FAF8F2",
+                  border: `1px solid ${rule}`,
+                  borderRadius: 3,
+                  padding: "10px 14px",
+                  fontSize: 12.5,
+                  lineHeight: 1.6,
+                }}
+              >
+                {detalle.justificacion}
+              </div>
             </div>
-          </div>
+          )}
           <div style={{ marginBottom: 14 }}>
             <SectionLabel>Estado</SectionLabel>
             <EstadoBadge estado={detalle.estado} />
@@ -267,7 +366,7 @@ export function TabConvenios({ rol }: TabConveniosProps) {
               <PrimaryBtn onClick={() => setShowDictamen(true)}>Emitir dictamen</PrimaryBtn>
             )}
             {puedePromover && detalle.estado === "Dictaminada" && (
-              <PrimaryBtn onClick={() => handlePromover(detalle.id)}>
+              <PrimaryBtn onClick={() => handlePromover(detalle.rawId)}>
                 Promover ante Dependencia
               </PrimaryBtn>
             )}
@@ -283,57 +382,42 @@ export function TabConvenios({ rol }: TabConveniosProps) {
         </Modal>
       )}
 
-      {showDictamen && (
+      {showDictamen && detalle && (
         <ModalDictamen
           onClose={() => setShowDictamen(false)}
-          onGuardar={(data) => {
-            // api.dictaminarConvenio(detalle.id, data)
-            setConvenios((prev) =>
-              prev.map((c) =>
-                c.id === detalle!.id
-                  ? {
-                      ...c,
-                      estado: "Dictaminada" as EstadoConv,
-                      dictamen: data.procedencia,
-                      dictamenJust: data.justificacion,
-                    }
-                  : c
-              )
-            );
-            setDetalle((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    estado: "Dictaminada" as EstadoConv,
-                    dictamen: data.procedencia,
-                    dictamenJust: data.justificacion,
-                  }
-                : null
-            );
-            setShowDictamen(false);
+          onGuardar={async (data) => {
+            try {
+              await conveniosService.dictaminarConvenio(detalle.rawId, {
+                decision: data.procedencia === "Procedente" ? 1 : 2,
+                justificacion: data.justificacion,
+                supervisorId: USUARIO_ID,
+              });
+              setShowDictamen(false);
+              setDetalle(null);
+              await cargar();
+            } catch (e: any) {
+              alert("Error al dictaminar: " + e.message);
+            }
           }}
         />
       )}
 
-      {showResolucion && (
+      {showResolucion && detalle && (
         <ModalResolucion
           onClose={() => setShowResolucion(false)}
-          onGuardar={(data) => {
-            // api.resolverConvenio(detalle.id, data)
-            setConvenios((prev) =>
-              prev.map((c) =>
-                c.id === detalle!.id
-                  ? {
-                      ...c,
-                      estado: (data.resolucion === "Aprobado"
-                        ? "Aprobado"
-                        : "Rechazado") as EstadoConv,
-                    }
-                  : c
-              )
-            );
-            setDetalle(null);
-            setShowResolucion(false);
+          onGuardar={async (data) => {
+            try {
+              await conveniosService.resolverConvenio(detalle.rawId, {
+                aprobado: data.resolucion === "Aprobado",
+                motivoRechazo: data.motivo || null,
+                usuarioDependenciaId: USUARIO_ID,
+              });
+              setShowResolucion(false);
+              setDetalle(null);
+              await cargar();
+            } catch (e: any) {
+              alert("Error al resolver: " + e.message);
+            }
           }}
         />
       )}
@@ -341,22 +425,22 @@ export function TabConvenios({ rol }: TabConveniosProps) {
       {showNuevo && (
         <ModalNuevoConvenio
           onClose={() => setShowNuevo(false)}
-          onCrear={(data) => {
-            // api.crearConvenio(mockContrato.id, data)
-            setConvenios((prev) => [
-              {
-                id: `CM-${String(prev.length + 1).padStart(3, "0")}`,
-                tipo: data.tipo,
-                monto: data.monto ? parseFloat(data.monto) : null,
+          onCrear={async (data) => {
+            try {
+              await conveniosService.crearConvenio(CONTRATO_ID, {
+                contratoId: CONTRATO_ID,
+                tipo: TIPO_BACKEND[data.tipo] ?? 1,
                 justificacion: data.justificacion,
-                estado: "En evaluación" as EstadoConv,
-                dictamen: null,
-                dictamenJust: "",
-                pasos: [],
-              },
-              ...prev,
-            ]);
-            setShowNuevo(false);
+                montoSolicitado: data.monto ? parseFloat(data.monto) : null,
+                plazoDiasSolicitado: null,
+                solicitanteId: USUARIO_ID,
+                urlsDocumentos: data.doc ? [data.doc] : [],
+              });
+              setShowNuevo(false);
+              await cargar();
+            } catch (e: any) {
+              alert("Error al crear convenio: " + e.message);
+            }
           }}
         />
       )}

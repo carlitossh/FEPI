@@ -75,4 +75,11 @@ export const estimacionesService = {
 
   getConceptosContrato: (contratoId: number) =>
     request<any[]>(`/contratos/${contratoId}/conceptos`),
+
+  vincularNotasBitacora: (estimacionId: number, notaBitacoraIds: number[]) =>
+    request<void>(`/estimaciones/${estimacionId}/notas-bitacora`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notaBitacoraIds }),
+    }),
 };

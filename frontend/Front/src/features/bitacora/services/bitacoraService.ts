@@ -59,4 +59,7 @@ firmarNota: (notaId: number, data: any) =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
+
+buscarEventos: (bitacoraId: number) =>
+  request<any[]>(`/bitacora/${bitacoraId}/eventos`),
 };

@@ -3,6 +3,7 @@ public class Contrato
 {
     public int Id { get; set; }
     public string NumeroContrato { get; set; } = null!;
+    public string? NombreObra { get; set; }
     public TipoContrato Tipo { get; set; }
     public decimal MontoContratado { get; set; }
     public DateOnly FechaInicio { get; set; }
@@ -11,6 +12,9 @@ public class Contrato
     public string DependenciaContratante { get; set; } = null!;
     public string ContratistaEmpresa { get; set; } = null!;
     public string ContratistaRepresentante { get; set; } = null!;
+    public string? ResidenteNombre { get; set; }
+    public string? SupervisorExternoNombre { get; set; }
+    public string? SuperintendenteNombre { get; set; }
     public EstadoContrato Estado { get; set; } = EstadoContrato.Activo;
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public ICollection<ConceptoContrato> ConceptoContratos { get; set; } = new List<ConceptoContrato>();

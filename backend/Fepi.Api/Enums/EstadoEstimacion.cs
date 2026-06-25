@@ -3,8 +3,9 @@ public enum EstadoEstimacion
 {
     Borrador = 1,
     Enviada = 2,
-    Observada = 3,
-    Aprobada = 4,
-    Rechazada = 5,
-    Pagada = 6
+    ObservadaSupervision = 3,
+    AprobadaSupervision = 4,
+    RechazadaResidencia = 5,
+    AprobadaResidencia = 6,
+    Cancelada = 7
 }

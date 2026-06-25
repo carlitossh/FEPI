@@ -69,4 +69,8 @@ public class EstimacionesController : ControllerBase
     [HttpGet("{id:int}/historial")]
     public async Task<ActionResult<List<EstimacionHistorialDto>>> ObtenerHistorial(int id, CancellationToken ct)
         => Ok(await _service.ObtenerHistorialAsync(id, ct));
+
+    [HttpGet("{id:int}/pagos")]
+    public async Task<ActionResult<List<PagoEstimacionDto>>> ObtenerPagos(int id, CancellationToken ct)
+        => Ok(await _service.ObtenerPagosAsync(id, ct));
 }

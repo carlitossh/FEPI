@@ -49,13 +49,56 @@ public record AlertaDto(int Id, TipoAlerta Tipo, string Mensaje, DateTime FechaG
 public record ConceptoContratoInputDto(string Clave, string Descripcion, string UnidadMedida, decimal CantidadContratada, decimal PrecioUnitario);
 public record ProgramaObraInputDto(string Periodo, decimal PorcentajeProgramado, decimal MontoProgramado);
 public record GarantiaInputDto(TipoGarantia Tipo, decimal Monto, decimal Porcentaje, DateOnly Vigencia);
-public record CrearContratoDto(string NumeroContrato, TipoContrato Tipo, decimal MontoContratado, DateOnly FechaInicio, DateOnly FechaTermino,
-    PeriodoEstimacion PeriodoEstimacion, string DependenciaContratante, string ContratistaEmpresa, string ContratistaRepresentante,
-    List<ConceptoContratoInputDto> ConceptoContratos, List<ProgramaObraInputDto> ProgramaObra, List<GarantiaInputDto> Garantias);
+public record CrearContratoDto(
+    string NumeroContrato,
+    TipoContrato Tipo,
+    decimal MontoContratado,
+    DateOnly FechaInicio,
+    DateOnly FechaTermino,
+    PeriodoEstimacion PeriodoEstimacion,
+    string DependenciaContratante,
+    string ContratistaEmpresa,
+    string ContratistaRepresentante,
+    string NombreObra = "",
+    string ResidenteNombre = "",
+    string SupervisorExternoNombre = "",
+    string SuperintendenteNombre = "",
+    List<ConceptoContratoInputDto>? ConceptoContratos = null,
+    List<ProgramaObraInputDto>? ProgramaObra = null,
+    List<GarantiaInputDto>? Garantias = null);
+public record ActualizarContratoDto(
+    string NumeroContrato,
+    TipoContrato Tipo,
+    decimal MontoContratado,
+    DateOnly FechaInicio,
+    DateOnly FechaTermino,
+    PeriodoEstimacion PeriodoEstimacion,
+    string DependenciaContratante,
+    string ContratistaEmpresa,
+    string ContratistaRepresentante,
+    string NombreObra = "",
+    string ResidenteNombre = "",
+    string SupervisorExternoNombre = "",
+    string SuperintendenteNombre = "");
 public record ContratoResumenDto(int Id, string NumeroContrato, decimal MontoContratado, decimal MontoEstimado, decimal MontoPagado, EstadoContrato Estado);
-public record ContratoDetalleDto(int Id, string NumeroContrato, TipoContrato Tipo, decimal MontoContratado, DateOnly FechaInicio, DateOnly FechaTermino,
-    string DependenciaContratante, string ContratistaEmpresa, EstadoContrato Estado, decimal ImporteTotalCatalogo,
-    List<ConceptoContratoDto> ConceptoContratos, List<GarantiaDto> Garantias);
+public record ContratoDetalleDto(
+    int Id,
+    string NumeroContrato,
+    TipoContrato Tipo,
+    decimal MontoContratado,
+    DateOnly FechaInicio,
+    DateOnly FechaTermino,
+    string DependenciaContratante,
+    string ContratistaEmpresa,
+    string ContratistaRepresentante,
+    EstadoContrato Estado,
+    decimal ImporteTotalCatalogo,
+    string? NombreObra,
+    string? ResidenteNombre,
+    string? SupervisorExternoNombre,
+    string? SuperintendenteNombre,
+    List<ConceptoContratoDto> ConceptoContratos,
+    List<GarantiaDto> Garantias);
 public record ConceptoContratoDto(int Id, string Clave, string Descripcion, string UnidadMedida, decimal CantidadContratada, decimal PrecioUnitario, decimal Importe);
 public record GarantiaDto(int Id, TipoGarantia Tipo, decimal Monto, decimal Porcentaje, DateOnly Vigencia, EstadoGarantia Estado);
 public record ActualizarProgramaObraDto(List<ProgramaObraInputDto> ProgramaObra);
@@ -70,4 +113,18 @@ public record RegistrarCierreDto(DateOnly FechaEntrega, string EstadoObraDescrip
 
 // SV-10
 public record DashboardContratoDto(int ContratoId, string NumeroContrato, decimal AvanceFisicoPct, decimal AvanceProgramadoPct,
-    decimal MontoEjercido, decimal MontoContratado, int EstimacionesPendientes, int ConveniosActivos, int GarantiasPorVencer);
+    decimal MontoEjercido, decimal MontoContratado, int EstimacionesPendientes, int ConveniosActivos, int GarantiasPorVencer,
+    decimal MontoPagadoTotal);
+
+// SV-10 Extended
+public record CurvaFinancieraPuntoDto(string Periodo, decimal PorcentajeEstimado, decimal PorcentajePagado);
+public record CurvaFinancieraDto(List<CurvaFinancieraPuntoDto> Puntos, decimal PorcentajeEstimadoActual, decimal PorcentajePagadoActual);
+public record VencimientoDto(string Tipo, string Descripcion, DateOnly FechaLimite, int DiasRestantes, string Severidad);
+public record BitacoraResumenDto(bool Abierta, int TotalNotas, int NotasCerradas, int NotasFirmasPendientes,
+    int Minutas, int Incidencias, int IncidenciasConNota, string? UltimaNotaAsunto, DateTime? UltimaNotaFecha);
+public record EstimacionesResumenDto(int Total, int Borrador, int Enviada, int ObservadaSupervision,
+    int AprobadaSupervision, int RechazadaResidencia, int AprobadaResidencia, int Cancelada,
+    int SinPago, int PagoParcial, int Pagada);
+public record ConveniosResumenDto(int Total, int Activos, int Aprobados, int Rechazados,
+    int PendientesRevision, decimal VariacionMontoAcumulada, int VariacionPlazoAcumuladaDias);
+public record ActividadRecienteDto(DateTime Fecha, string Modulo, string Descripcion, string? Usuario, string? Referencia);

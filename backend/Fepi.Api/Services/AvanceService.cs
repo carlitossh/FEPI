@@ -128,8 +128,7 @@ public class AvanceService : IAvanceService
             var montoEjercido = await _context.Estimaciones
                 .Where(e =>
                     e.ContratoId == contrato.Id &&
-                    (e.Estado == EstadoEstimacion.Aprobada ||
-                     e.Estado == EstadoEstimacion.Pagada))
+                    e.Estado == EstadoEstimacion.AprobadaResidencia)
                 .Include(e => e.Conceptos)
                 .SelectMany(e => e.Conceptos)
                 .SumAsync(x => x.Importe, ct);

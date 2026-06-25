@@ -13,20 +13,19 @@ import { ModalMinuta } from "../components/ModalMinuta";
 import { ModalIncidencia } from "../components/ModalIncidencia";
 import { ModalSolicitud } from "../components/ModalSolicitud";
 import {
-  ink,
-  paper2,
   rule,
   obra,
   obraSoft,
   aprobado,
   aprobadoSoft,
   observado,
-  observadoSoft,
   folio,
   muted,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 import type { FirmasBitacora, NotaBitacora, TipoNota } from "../types";
 import { bitacoraService } from "../services/bitacoraService";
+import { contratosService } from "../../expediente/services/contratosService";
 
 interface TabBitacoraProps {
   rol: string;
@@ -174,9 +173,12 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
   const [modalTipo, setModalTipo] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("Todos");
-  const [abierta, setAbierta] = useState(true);
+  const [cargando, setCargando] = useState(true);
+  const [contrato, setContrato] = useState<any>(null);
   const [showApertura, setShowApertura] = useState(false);
   const [detalle, setDetalle] = useState<EventoBitacora | null>(null);
+
+  const abierta = !cargando && eventos.some((e) => e.tipo === "Apertura");
 
   const puedeCrearNota = ["Residente", "Supervisor", "Superintendente"].includes(rol);
   const puedeCrearMinuta = rol === "Supervisor";
@@ -193,14 +195,15 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
       : null;
 
   async function cargarEventos() {
+    setCargando(true);
     try {
       const data = await bitacoraService.buscarEventos(BITACORA_ID);
       setEventos(data.map(mapEvento));
-      setAbierta(true);
     } catch (error) {
       console.error("Error cargando eventos:", error);
       setEventos([]);
-      setAbierta(true);
+    } finally {
+      setCargando(false);
     }
   }
 
@@ -235,6 +238,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
 
   useEffect(() => {
     cargarEventos();
+    contratosService.obtener(CONTRATO_ID).then(setContrato).catch(() => {});
   }, []);
 
   const filtradas = eventos
@@ -248,26 +252,28 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
 
   return (
     <div>
-      {!abierta && (
+      {!cargando && !abierta && (
         <div
           style={{
-            background: observadoSoft,
-            border: `1px solid ${observado}`,
-            borderRadius: 4,
-            padding: "14px 18px",
+            background: C.surface2,
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "28px 24px",
             marginBottom: 20,
             display: "flex",
-            justifyContent: "space-between",
+            flexDirection: "column",
             alignItems: "center",
+            gap: 14,
+            textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 13, color: observado, fontWeight: 600 }}>
-            La bitácora no ha sido abierta. No es posible crear registros.
+          <div style={{ fontSize: 13, color: C.fgMuted }}>
+            La bitácora no ha sido abierta. Para registrar notas es necesario crear la nota de apertura formal.
           </div>
 
           {rol === "Residente" && (
             <PrimaryBtn onClick={() => setShowApertura(true)}>
-              Abrir bitácora →
+              Crear nota de apertura →
             </PrimaryBtn>
           )}
         </div>
@@ -312,14 +318,16 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar asunto o folio..."
               style={{
-                border: `1px solid ${rule}`,
-                background: paper2,
-                borderRadius: 3,
-                padding: "7px 12px 7px 28px",
+                border: `1px solid ${C.border}`,
+                background: C.surface2,
+                borderRadius: 10,
+                padding: "8px 12px 8px 28px",
                 fontSize: 12,
                 fontFamily: "'IBM Plex Sans', sans-serif",
                 outline: "none",
                 width: 200,
+                color: C.fg,
+                colorScheme: "dark",
               }}
             />
           </div>
@@ -328,13 +336,15 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
             value={filtroTipo}
             onChange={(e) => setFiltroTipo(e.target.value)}
             style={{
-              border: `1px solid ${rule}`,
-              background: paper2,
-              borderRadius: 3,
-              padding: "7px 12px",
+              border: `1px solid ${C.border}`,
+              background: C.surface2,
+              borderRadius: 10,
+              padding: "8px 12px",
               fontSize: 12,
               fontFamily: "'IBM Plex Sans', sans-serif",
               outline: "none",
+              color: C.fg,
+              colorScheme: "dark",
             }}
           >
             {["Todos", "Apertura", "Nota", "Minuta", "Incidencia"].map((o) => (
@@ -349,12 +359,12 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               display: "flex",
               alignItems: "center",
               gap: 4,
-              border: `1px solid ${rule}`,
-              background: paper2,
-              borderRadius: 3,
-              padding: "7px 10px",
+              border: `1px solid ${C.border}`,
+              background: C.surface2,
+              borderRadius: 10,
+              padding: "8px 10px",
               fontSize: 12,
-              color: muted,
+              color: C.fgMuted,
               cursor: "pointer",
               fontFamily: "'IBM Plex Sans', sans-serif",
             }}
@@ -369,19 +379,16 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
           <TableHeader cols={["Folio", "Tipo", "Fecha", "Asunto", "Firmas", "Folio ref.", ""]} />
 
           <tbody>
-            {filtradas.map((b, i) => {
+            {filtradas.map((b) => {
               const todas = b.firmasTexto === "3/3";
               const ninguna = b.firmasTexto === "0/3";
 
               return (
                 <tr
                   key={`${b.tipo}-${b.id}`}
-                  style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
-                  onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
-                  onMouseLeave={(el) =>
-                    (el.currentTarget.style.background =
-                      i % 2 === 1 ? "#FAF8F2" : paper2)
-                  }
+                  style={{ background: "transparent" }}
+                  onMouseEnter={(el) => (el.currentTarget.style.background = C.surface2)}
+                  onMouseLeave={(el) => (el.currentTarget.style.background = "transparent")}
                 >
                   <td
                     style={{
@@ -454,9 +461,9 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                       style={{
                         fontSize: 11.5,
                         color: obra,
-                        background: "none",
-                        border: `1px solid ${rule}`,
-                        borderRadius: 3,
+                        background: C.blueSoft,
+                        border: "none",
+                        borderRadius: 8,
                         padding: "4px 10px",
                         cursor: "pointer",
                         fontFamily: "'IBM Plex Sans', sans-serif",
@@ -494,12 +501,13 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
             <SectionLabel>Contenido</SectionLabel>
             <div
               style={{
-                background: "#FAF8F2",
-                border: `1px solid ${rule}`,
-                borderRadius: 3,
+                background: C.surface2,
+                border: `1px solid ${C.border}`,
+                borderRadius: 10,
                 padding: "12px 14px",
                 fontSize: 13,
                 lineHeight: 1.6,
+                color: C.fg,
               }}
             >
               {detalle.contenido}
@@ -535,8 +543,8 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                       style={{
                         flex: 1,
                         border: `1.5px solid ${done ? aprobado : esMiTurno ? obra : rule}`,
-                        background: done ? aprobadoSoft : esMiTurno ? obraSoft : "#FAF8F2",
-                        borderRadius: 3,
+                        background: done ? aprobadoSoft : esMiTurno ? obraSoft : C.surface2,
+                        borderRadius: 10,
                         padding: "10px 6px",
                         textAlign: "center",
                         fontSize: 11,
@@ -568,11 +576,11 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
         <div
           key={`${f.rol}-${index}`}
           style={{
-            border: `1px solid ${rule}`,
-            borderRadius: 4,
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
             padding: "10px 12px",
             marginBottom: 8,
-            background: "#FAF8F2",
+            background: C.surface2,
           }}
         >
           <div
@@ -623,22 +631,22 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
 
       {showApertura && (
         <ModalAperturaBitacora
+          contrato={contrato}
           onClose={() => setShowApertura(false)}
-          onAbrir={async (data) => {
+          onAbrir={async (fecha) => {
+            const tipoContrato = contrato?.tipo === 2 ? "ServiciosRelacionados" : "ObraPublica";
             await bitacoraService.abrirBitacora({
               contratoId: CONTRATO_ID,
-              nombreContrato: data.descripcion,
-              numeroContrato: `Contrato-${CONTRATO_ID}`,
-              tipoContrato: "ObraPublica",
-              dependenciaContratante: "Dependencia de prueba",
-              contratistaEmpresa: "Contratista de prueba",
-              residenteNombre: "Residente",
-              supervisorDesignadoNombre: "Supervisor",
-              superintendenteNombre: "Superintendente",
-              fechaAperturaFormal: data.fecha,
+              nombreContrato: contrato?.nombreObra ?? "",
+              numeroContrato: contrato?.numeroContrato ?? `Contrato-${CONTRATO_ID}`,
+              tipoContrato,
+              dependenciaContratante: contrato?.dependenciaContratante ?? "",
+              contratistaEmpresa: contrato?.contratistaEmpresa ?? "",
+              residenteNombre: contrato?.residenteNombre ?? "",
+              supervisorDesignadoNombre: contrato?.supervisorExternoNombre ?? "",
+              superintendenteNombre: contrato?.superintendenteNombre ?? "",
+              fechaAperturaFormal: fecha,
             });
-
-            setAbierta(true);
             setShowApertura(false);
             await cargarEventos();
           }}

@@ -249,6 +249,9 @@ public class FepiDbContext : DbContext
                 .HasMaxLength(80)
                 .IsRequired();
 
+            entity.Property(x => x.MontoPagadoAcumulado)
+                .HasPrecision(18, 2);
+
             entity.HasOne(x => x.Contrato)
                 .WithMany()
                 .HasForeignKey(x => x.ContratoId)
@@ -257,6 +260,16 @@ public class FepiDbContext : DbContext
             entity.HasOne(x => x.UsuarioEnvio)
                 .WithMany()
                 .HasForeignKey(x => x.UsuarioEnvioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.UsuarioAprobacionSupervision)
+                .WithMany()
+                .HasForeignKey(x => x.UsuarioAprobacionSupervisionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.UsuarioAprobacionResidencia)
+                .WithMany()
+                .HasForeignKey(x => x.UsuarioAprobacionResidenciaId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -359,9 +372,6 @@ public class FepiDbContext : DbContext
         {
             entity.HasKey(x => x.Id);
 
-            entity.HasIndex(x => x.EstimacionId)
-                .IsUnique();
-
             entity.Property(x => x.ReferenciaBancaria)
                 .HasMaxLength(150)
                 .IsRequired();
@@ -370,9 +380,14 @@ public class FepiDbContext : DbContext
                 .HasPrecision(18, 2);
 
             entity.HasOne(x => x.Estimacion)
-                .WithOne(x => x.Pago)
-                .HasForeignKey<EstimacionPago>(x => x.EstimacionId)
+                .WithMany(x => x.Pagos)
+                .HasForeignKey(x => x.EstimacionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.UsuarioRegistro)
+                .WithMany()
+                .HasForeignKey(x => x.UsuarioRegistroId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // =====================

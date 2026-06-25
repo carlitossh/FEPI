@@ -34,8 +34,6 @@ public class EstimacionRepository : GenericRepository<Estimacion>, IEstimacionRe
     {
         return await _context.Estimaciones
             .Where(e => e.ContratoId == contratoId)
-            .Select(e => e.NumeroCorrelativo)
-            .DefaultIfEmpty(0)
-            .MaxAsync(ct);
+            .MaxAsync(e => (int?)e.NumeroCorrelativo, ct) ?? 0;
     }
 }

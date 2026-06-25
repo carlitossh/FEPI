@@ -26,6 +26,7 @@ public class ContratoService : IContratoService
         var contrato = new Contrato
         {
             NumeroContrato = dto.NumeroContrato,
+            NombreObra = dto.NombreObra,
             Tipo = dto.Tipo,
             MontoContratado = dto.MontoContratado,
             FechaInicio = dto.FechaInicio,
@@ -34,11 +35,14 @@ public class ContratoService : IContratoService
             DependenciaContratante = dto.DependenciaContratante,
             ContratistaEmpresa = dto.ContratistaEmpresa,
             ContratistaRepresentante = dto.ContratistaRepresentante,
+            ResidenteNombre = dto.ResidenteNombre,
+            SupervisorExternoNombre = dto.SupervisorExternoNombre,
+            SuperintendenteNombre = dto.SuperintendenteNombre,
             Estado = EstadoContrato.Activo,
             FechaCreacion = DateTime.UtcNow
         };
 
-        foreach (var c in dto.ConceptoContratos)
+        foreach (var c in dto.ConceptoContratos ?? [])
         {
             contrato.ConceptoContratos.Add(new ConceptoContrato
             {
@@ -51,7 +55,7 @@ public class ContratoService : IContratoService
             });
         }
 
-        foreach (var p in dto.ProgramaObra)
+        foreach (var p in dto.ProgramaObra ?? [])
         {
             contrato.ProgramaObra.Add(new ProgramaObraItem
             {
@@ -61,7 +65,7 @@ public class ContratoService : IContratoService
             });
         }
 
-        foreach (var g in dto.Garantias)
+        foreach (var g in dto.Garantias ?? [])
         {
             contrato.Garantias.Add(new Garantia
             {
@@ -95,8 +99,13 @@ public class ContratoService : IContratoService
             c.FechaTermino,
             c.DependenciaContratante,
             c.ContratistaEmpresa,
+            c.ContratistaRepresentante,
             c.Estado,
             c.ConceptoContratos.Sum(x => x.Importe),
+            c.NombreObra,
+            c.ResidenteNombre,
+            c.SupervisorExternoNombre,
+            c.SuperintendenteNombre,
             c.ConceptoContratos
                 .Select(x => new ConceptoContratoDto(
                     x.Id,
@@ -151,8 +160,7 @@ public class ContratoService : IContratoService
                     ec.Estimacion != null &&
                     ec.Estimacion.ContratoId == contrato.Id &&
                     (
-                        ec.Estimacion.Estado == EstadoEstimacion.Aprobada ||
-                        ec.Estimacion.Estado == EstadoEstimacion.Pagada
+                        ec.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia
                     ))
                 .SumAsync(ec => ec.Importe, ct);
 
@@ -251,6 +259,37 @@ public class ContratoService : IContratoService
             ?? throw new InvalidOperationException("Contrato no encontrado.");
 
         contrato.MontoContratado = nuevoMonto;
+
+        await _context.SaveChangesAsync(ct);
+    }
+
+    public async Task ActualizarAsync(int contratoId, ActualizarContratoDto dto, CancellationToken ct = default)
+    {
+        var contrato = await _context.Contratos
+            .FirstOrDefaultAsync(c => c.Id == contratoId, ct)
+            ?? throw new InvalidOperationException("Contrato no encontrado.");
+
+        if (contrato.NumeroContrato != dto.NumeroContrato)
+        {
+            var existe = await _context.Contratos
+                .AnyAsync(c => c.NumeroContrato == dto.NumeroContrato, ct);
+            if (existe)
+                throw new InvalidOperationException("Ya existe un contrato con ese número.");
+        }
+
+        contrato.NumeroContrato = dto.NumeroContrato;
+        contrato.NombreObra = dto.NombreObra;
+        contrato.Tipo = dto.Tipo;
+        contrato.MontoContratado = dto.MontoContratado;
+        contrato.FechaInicio = dto.FechaInicio;
+        contrato.FechaTermino = dto.FechaTermino;
+        contrato.PeriodoEstimacion = dto.PeriodoEstimacion;
+        contrato.DependenciaContratante = dto.DependenciaContratante;
+        contrato.ContratistaEmpresa = dto.ContratistaEmpresa;
+        contrato.ContratistaRepresentante = dto.ContratistaRepresentante;
+        contrato.ResidenteNombre = dto.ResidenteNombre;
+        contrato.SupervisorExternoNombre = dto.SupervisorExternoNombre;
+        contrato.SuperintendenteNombre = dto.SuperintendenteNombre;
 
         await _context.SaveChangesAsync(ct);
     }

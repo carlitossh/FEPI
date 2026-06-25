@@ -1,5 +1,5 @@
 import React from "react";
-import { obra } from "../styles/theme";
+import { C } from "../styles/theme";
 
 interface PrimaryBtnProps {
   children: React.ReactNode;
@@ -14,15 +14,18 @@ export function PrimaryBtn({ children, onClick, disabled, style = {} }: PrimaryB
       onClick={onClick}
       disabled={disabled}
       style={{
-        background: disabled ? "#C9C2AC" : obra,
+        background: disabled ? C.fgSub : C.blue,
         color: "#fff",
         border: "none",
-        borderRadius: 3,
+        borderRadius: 10,
         padding: "8px 16px",
         fontSize: 12.5,
         fontWeight: 600,
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "'IBM Plex Sans', sans-serif",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
         ...style,
       }}
     >

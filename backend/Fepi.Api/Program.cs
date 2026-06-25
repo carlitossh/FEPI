@@ -14,7 +14,9 @@ var builder = WebApplication.CreateBuilder(args);
 // ConnectionStrings:Default en appsettings.json / appsettings.Development.json
 // ───────────────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<FepiDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 
 builder.Services.AddScoped<IAvanceService, AvanceService>();
@@ -38,6 +40,24 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(p => p.AllowAnyOrig
 
 var app = builder.Build();
 
+// Map InvalidOperationException to 400/404 instead of letting it become 500.
+app.Use(async (ctx, next) =>
+{
+    try
+    {
+        await next(ctx);
+    }
+    catch (InvalidOperationException ex)
+    {
+        ctx.Response.StatusCode = ex.Message.Contains("no encontrado", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("no existe", StringComparison.OrdinalIgnoreCase)
+            ? StatusCodes.Status404NotFound
+            : StatusCodes.Status400BadRequest;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(new { error = ex.Message });
+    }
+});
+
 await SeedData.InitializeAsync(app.Services);
 
 app.UseSwagger();
@@ -51,6 +71,5 @@ app.MapScalarApiReference(options =>
 });
 
 app.UseCors();
-app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();

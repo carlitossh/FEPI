@@ -1,4 +1,4 @@
-import { rule, ink } from "../styles/theme";
+import { C } from "../styles/theme";
 
 interface TextAreaProps {
   placeholder?: string;
@@ -15,17 +15,18 @@ export function TextArea({ placeholder, value, onChange, rows = 3 }: TextAreaPro
       placeholder={placeholder}
       rows={rows}
       style={{
-        border: `1px solid ${rule}`,
-        background: "#FAF8F2",
-        borderRadius: 3,
-        padding: "8px 12px",
+        border: `1px solid ${C.border}`,
+        background: C.surface2,
+        borderRadius: 10,
+        padding: "9px 12px",
         fontSize: 12.5,
-        color: ink,
+        color: C.fg,
         fontFamily: "'IBM Plex Sans', sans-serif",
         outline: "none",
         width: "100%",
         boxSizing: "border-box",
         resize: "vertical",
+        colorScheme: "dark",
       }}
     />
   );

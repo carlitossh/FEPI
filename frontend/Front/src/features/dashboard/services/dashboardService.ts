@@ -6,6 +6,12 @@ export async function getContrato(id: number) {
   return response.json();
 }
 
+export async function getContratos(): Promise<any[]> {
+  const response = await fetch(`${API}/contratos`);
+  if (!response.ok) return [];
+  return response.json();
+}
+
 export async function getCurvaS(id: number) {
   const response = await fetch(`${API}/avance/contrato/${id}/curva-s`);
   if (!response.ok) throw new Error("No se pudo obtener la Curva S");

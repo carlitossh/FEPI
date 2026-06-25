@@ -9,8 +9,10 @@ import { EstadoBadge } from "../../../components/EstadoBadge";
 import { Field } from "../../../components/Field";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
-  ink, paper2, rule, obra, obraSoft, folio, muted,
+  rule, obra, obraSoft, folio, aprobado, aprobadoSoft, muted,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
+import { contratosService } from "../services/contratosService";
 import type { SeccionExpediente } from "../types";
 
 const API = "http://localhost:5000/api";
@@ -20,7 +22,10 @@ const BITACORA_ID = 1;
 const TIPO_CONTRATO: Record<number, string> = { 1: "Obra Pública", 2: "Servicios relacionados" };
 const TIPO_GARANTIA: Record<number, string> = { 1: "Anticipo", 2: "Cumplimiento", 3: "Vicios ocultos", 4: "Otra" };
 const ESTADO_GARANTIA: Record<number, string> = { 1: "vigente", 2: "vencida", 3: "liberada", 4: "ejecutada" };
-const ESTADO_ESTIMACION: Record<number, string> = { 1: "Borrador", 2: "Enviada", 3: "Observada", 4: "Aprobada", 5: "Rechazada", 6: "Pagada" };
+const ESTADO_ESTIMACION: Record<number, string> = {
+  1: "Borrador", 2: "Enviada", 3: "ObservadaSupervision", 4: "AprobadaSupervision",
+  5: "RechazadaResidencia", 6: "AprobadaResidencia", 7: "Cancelada",
+};
 const TIPO_CONVENIO: Record<number, string> = { 1: "Incremento de monto", 2: "Ampliación de plazo", 3: "Ajuste de catálogo" };
 const ESTADO_CONVENIO: Record<number, string> = { 1: "En evaluación", 2: "Dictaminada", 3: "Promovida", 4: "Aprobado", 5: "Rechazado" };
 
@@ -28,33 +33,132 @@ function diasRestantes(fechaStr: string): number {
   return Math.ceil((new Date(fechaStr).getTime() - Date.now()) / 86_400_000);
 }
 
-interface TabExpedienteProps {
-  rol: string;
+interface ContratoForm {
+  numeroContrato: string;
+  nombreObra: string;
+  tipo: string;
+  periodoEstimacion: string;
+  dependenciaContratante: string;
+  contratistaEmpresa: string;
+  contratistaRepresentante: string;
+  residenteNombre: string;
+  supervisorExternoNombre: string;
+  superintendenteNombre: string;
+  montoContratado: string;
+  fechaInicio: string;
+  fechaTermino: string;
 }
 
-export function TabExpediente({ rol: _rol }: TabExpedienteProps) {
+const emptyForm: ContratoForm = {
+  numeroContrato: "",
+  nombreObra: "",
+  tipo: "1",
+  periodoEstimacion: "1",
+  dependenciaContratante: "",
+  contratistaEmpresa: "",
+  contratistaRepresentante: "",
+  residenteNombre: "",
+  supervisorExternoNombre: "",
+  superintendenteNombre: "",
+  montoContratado: "",
+  fechaInicio: "",
+  fechaTermino: "",
+};
+
+function formFromContrato(c: any): ContratoForm {
+  return {
+    numeroContrato: c.numeroContrato ?? "",
+    nombreObra: c.nombreObra ?? "",
+    tipo: String(c.tipo ?? 1),
+    periodoEstimacion: String(c.periodoEstimacion ?? 1),
+    dependenciaContratante: c.dependenciaContratante ?? "",
+    contratistaEmpresa: c.contratistaEmpresa ?? "",
+    contratistaRepresentante: c.contratistaRepresentante ?? "",
+    residenteNombre: c.residenteNombre ?? "",
+    supervisorExternoNombre: c.supervisorExternoNombre ?? "",
+    superintendenteNombre: c.superintendenteNombre ?? "",
+    montoContratado: String(c.montoContratado ?? ""),
+    fechaInicio: c.fechaInicio ?? "",
+    fechaTermino: c.fechaTermino ?? "",
+  };
+}
+
+const inputStyle = {
+  border: `1px solid ${C.border}`,
+  background: C.surface2,
+  borderRadius: 10,
+  padding: "9px 12px",
+  fontSize: 12.5,
+  color: C.fg,
+  fontFamily: "'IBM Plex Sans', sans-serif",
+  outline: "none",
+  width: "100%",
+  colorScheme: "dark",
+  boxSizing: "border-box" as const,
+};
+
+const selectStyle = { ...inputStyle, cursor: "pointer" };
+
+interface TabExpedienteProps {
+  rol: string;
+  onContratoSaved?: () => void;
+}
+
+export function TabExpediente({ rol: _rol, onContratoSaved }: TabExpedienteProps) {
   const secciones: SeccionExpediente[] = [
     "Datos generales", "Catálogo", "Programa de obra", "Garantías",
     "Estimaciones", "Bitácora", "Convenios", "Documentación",
   ];
   const [sec, setSec] = useState<SeccionExpediente>("Datos generales");
   const [contrato, setContrato] = useState<any>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [form, setForm] = useState<ContratoForm>(emptyForm);
+
   const [curvaS, setCurvaS] = useState<any[]>([]);
   const [estimaciones, setEstimaciones] = useState<any[]>([]);
   const [eventos, setEventos] = useState<any[]>([]);
   const [convenios, setConvenios] = useState<any[]>([]);
 
-  useEffect(() => {
+  const loadContrato = () => {
     fetch(`${API}/contratos/${CONTRATO_ID}`)
-      .then((r) => r.ok ? r.json() : null).then(setContrato).catch(() => {});
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        setContrato(data);
+        setDataLoaded(true);
+        if (data) {
+          setForm(formFromContrato(data));
+        } else {
+          setIsEditing(true);
+        }
+      })
+      .catch(() => {
+        setDataLoaded(true);
+        setIsEditing(true);
+      });
+  };
+
+  useEffect(() => {
+    loadContrato();
     fetch(`${API}/avance/contrato/${CONTRATO_ID}/curva-s`)
-      .then((r) => r.ok ? r.json() : { puntos: [] }).then((d) => setCurvaS(d.puntos ?? [])).catch(() => {});
+      .then((r) => (r.ok ? r.json() : { puntos: [] }))
+      .then((d) => setCurvaS(d.puntos ?? []))
+      .catch(() => {});
     fetch(`${API}/estimaciones/contrato/${CONTRATO_ID}`)
-      .then((r) => r.ok ? r.json() : []).then(setEstimaciones).catch(() => {});
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setEstimaciones)
+      .catch(() => {});
     fetch(`${API}/bitacora/${BITACORA_ID}/eventos`)
-      .then((r) => r.ok ? r.json() : []).then(setEventos).catch(() => {});
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setEventos)
+      .catch(() => {});
     fetch(`${API}/contratos/${CONTRATO_ID}/convenios`)
-      .then((r) => r.ok ? r.json() : []).then(setConvenios).catch(() => {});
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setConvenios)
+      .catch(() => {});
   }, []);
 
   const curvaGrafica = curvaS.map((x) => ({
@@ -62,6 +166,365 @@ export function TabExpediente({ rol: _rol }: TabExpedienteProps) {
     programado: x.porcentajeProgramado,
     real: x.porcentajeReal,
   }));
+
+  const setField = (key: keyof ContratoForm, val: string) =>
+    setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSave = async () => {
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      const payload = {
+        numeroContrato: form.numeroContrato.trim(),
+        nombreObra: form.nombreObra.trim(),
+        tipo: parseInt(form.tipo),
+        periodoEstimacion: parseInt(form.periodoEstimacion),
+        dependenciaContratante: form.dependenciaContratante.trim(),
+        contratistaEmpresa: form.contratistaEmpresa.trim(),
+        contratistaRepresentante: form.contratistaRepresentante.trim(),
+        residenteNombre: form.residenteNombre.trim(),
+        supervisorExternoNombre: form.supervisorExternoNombre.trim(),
+        superintendenteNombre: form.superintendenteNombre.trim(),
+        montoContratado: parseFloat(form.montoContratado) || 0,
+        fechaInicio: form.fechaInicio,
+        fechaTermino: form.fechaTermino,
+      };
+
+      if (!contrato) {
+        const id = await contratosService.crear({
+          ...payload,
+          conceptoContratos: [],
+          programaObra: [],
+          garantias: [],
+        });
+        const nuevo = await contratosService.obtener(id);
+        setContrato(nuevo);
+      } else {
+        await contratosService.actualizar(CONTRATO_ID, payload);
+        const updated = await contratosService.obtener(CONTRATO_ID);
+        setContrato(updated);
+      }
+
+      setIsEditing(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 4000);
+      if (onContratoSaved) onContratoSaved();
+    } catch (e: any) {
+      setSaveError(e.message || "Error al guardar el contrato.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (contrato) {
+      setForm(formFromContrato(contrato));
+      setIsEditing(false);
+      setSaveError(null);
+    }
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10.5,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    color: muted,
+    marginBottom: 5,
+    display: "block",
+  };
+
+  const sectionHeadStyle: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
+    color: obra,
+    borderBottom: `1px solid ${rule}`,
+    paddingBottom: 6,
+    marginTop: 24,
+    marginBottom: 14,
+  };
+
+  const renderContratoForm = () => (
+    <div>
+      {!contrato && (
+        <div
+          style={{
+            background: obraSoft,
+            border: `1px solid ${obra}`,
+            borderRadius: 4,
+            padding: "12px 16px",
+            marginBottom: 20,
+            fontSize: 12.5,
+            color: obra,
+          }}
+        >
+          <strong>Primera vez en el sistema.</strong> Completa los datos del contrato para comenzar a usar FEPI.
+        </div>
+      )}
+
+      {saveSuccess && (
+        <div
+          style={{
+            background: aprobadoSoft,
+            border: `1px solid ${aprobado}`,
+            borderRadius: 4,
+            padding: "10px 16px",
+            marginBottom: 16,
+            fontSize: 12.5,
+            color: aprobado,
+          }}
+        >
+          ✓ Contrato guardado correctamente.
+        </div>
+      )}
+
+      {saveError && (
+        <div
+          style={{
+            background: "#FCE8E8",
+            border: `1px solid ${folio}`,
+            borderRadius: 4,
+            padding: "10px 16px",
+            marginBottom: 16,
+            fontSize: 12.5,
+            color: folio,
+          }}
+        >
+          {saveError}
+        </div>
+      )}
+
+      <div style={sectionHeadStyle}>Datos generales</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 20px" }}>
+        <div>
+          <label style={labelStyle}>Número de contrato *</label>
+          <input
+            style={inputStyle}
+            value={form.numeroContrato}
+            onChange={(e) => setField("numeroContrato", e.target.value)}
+            placeholder="Ej. CT-2026-001"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Nombre de la obra</label>
+          <input
+            style={inputStyle}
+            value={form.nombreObra}
+            onChange={(e) => setField("nombreObra", e.target.value)}
+            placeholder="Nombre descriptivo de la obra"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Tipo de contrato *</label>
+          <select style={selectStyle} value={form.tipo} onChange={(e) => setField("tipo", e.target.value)}>
+            <option value="1">Obra Pública</option>
+            <option value="2">Servicios relacionados</option>
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Periodo de estimación *</label>
+          <select style={selectStyle} value={form.periodoEstimacion} onChange={(e) => setField("periodoEstimacion", e.target.value)}>
+            <option value="1">Mensual</option>
+            <option value="2">Quincenal</option>
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Dependencia contratante *</label>
+          <input
+            style={inputStyle}
+            value={form.dependenciaContratante}
+            onChange={(e) => setField("dependenciaContratante", e.target.value)}
+            placeholder="Ej. SOPOT Edo. de México"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Empresa contratista *</label>
+          <input
+            style={inputStyle}
+            value={form.contratistaEmpresa}
+            onChange={(e) => setField("contratistaEmpresa", e.target.value)}
+            placeholder="Razón social del contratista"
+          />
+        </div>
+        <div style={{ gridColumn: "span 2" }}>
+          <label style={labelStyle}>Representante legal del contratista</label>
+          <input
+            style={inputStyle}
+            value={form.contratistaRepresentante}
+            onChange={(e) => setField("contratistaRepresentante", e.target.value)}
+            placeholder="Nombre del representante legal"
+          />
+        </div>
+      </div>
+
+      <div style={sectionHeadStyle}>Responsables</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 20px" }}>
+        <div>
+          <label style={labelStyle}>Residente de obra</label>
+          <input
+            style={inputStyle}
+            value={form.residenteNombre}
+            onChange={(e) => setField("residenteNombre", e.target.value)}
+            placeholder="Nombre del residente"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Supervisor externo</label>
+          <input
+            style={inputStyle}
+            value={form.supervisorExternoNombre}
+            onChange={(e) => setField("supervisorExternoNombre", e.target.value)}
+            placeholder="Nombre del supervisor"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Superintendente</label>
+          <input
+            style={inputStyle}
+            value={form.superintendenteNombre}
+            onChange={(e) => setField("superintendenteNombre", e.target.value)}
+            placeholder="Nombre del superintendente"
+          />
+        </div>
+      </div>
+
+      <div style={sectionHeadStyle}>Información financiera y fechas</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 20px" }}>
+        <div>
+          <label style={labelStyle}>Monto contratado (MXN) *</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.montoContratado}
+            onChange={(e) => setField("montoContratado", e.target.value)}
+            placeholder="0.00"
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Fecha de inicio *</label>
+          <input
+            style={inputStyle}
+            type="date"
+            value={form.fechaInicio}
+            onChange={(e) => setField("fechaInicio", e.target.value)}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Fecha de término *</label>
+          <input
+            style={inputStyle}
+            type="date"
+            value={form.fechaTermino}
+            onChange={(e) => setField("fechaTermino", e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{
+            background: obra,
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "9px 20px",
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: isSaving ? "wait" : "pointer",
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            opacity: isSaving ? 0.7 : 1,
+          }}
+        >
+          {isSaving ? "Guardando..." : contrato ? "Guardar cambios" : "Registrar contrato"}
+        </button>
+        {contrato && (
+          <button
+            onClick={handleCancel}
+            disabled={isSaving}
+            style={{
+              background: "transparent",
+              color: muted,
+              border: `1px solid ${rule}`,
+              borderRadius: 3,
+              padding: "9px 18px",
+              fontSize: 12.5,
+              cursor: "pointer",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
+          >
+            Cancelar
+          </button>
+        )}
+      </div>
+
+      {!contrato && (
+        <div style={{ marginTop: 20, fontSize: 12, color: muted }}>
+          <strong>Pasos siguientes:</strong> Catálogo de conceptos → Programa de obra → Abrir bitácora → Registrar avances → Crear estimaciones
+        </div>
+      )}
+    </div>
+  );
+
+  const renderContratoView = () => (
+    <div>
+      {saveSuccess && (
+        <div
+          style={{
+            background: aprobadoSoft,
+            border: `1px solid ${aprobado}`,
+            borderRadius: 4,
+            padding: "10px 16px",
+            marginBottom: 16,
+            fontSize: 12.5,
+            color: aprobado,
+          }}
+        >
+          ✓ Contrato actualizado correctamente.
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <button
+          onClick={() => { setIsEditing(true); setSaveSuccess(false); setSaveError(null); }}
+          style={{
+            background: "transparent",
+            color: obra,
+            border: `1px solid ${obra}`,
+            borderRadius: 3,
+            padding: "7px 16px",
+            fontSize: 12,
+            cursor: "pointer",
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontWeight: 600,
+          }}
+        >
+          Editar contrato
+        </button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <Field label="Número de contrato" value={contrato.numeroContrato} />
+        <Field label="Nombre de la obra" value={contrato.nombreObra || "—"} />
+        <Field label="Tipo de contrato" value={TIPO_CONTRATO[contrato.tipo] ?? String(contrato.tipo)} />
+        <Field label="Periodo de estimación" value={contrato.periodoEstimacion === 1 ? "Mensual" : "Quincenal"} />
+        <Field label="Monto contratado" value={fmtMXN(contrato.montoContratado)} />
+        <Field label="Importe total catálogo" value={fmtMXN(contrato.importeTotalCatalogo)} />
+        <Field label="Fecha de inicio" value={contrato.fechaInicio} />
+        <Field label="Fecha de término" value={contrato.fechaTermino} />
+        <Field label="Dependencia contratante" value={contrato.dependenciaContratante} />
+        <Field label="Empresa contratista" value={contrato.contratistaEmpresa} />
+        <Field label="Representante legal" value={contrato.contratistaRepresentante || "—"} />
+        <div />
+        <Field label="Residente de obra" value={contrato.residenteNombre || "—"} />
+        <Field label="Supervisor externo" value={contrato.supervisorExternoNombre || "—"} />
+        <Field label="Superintendente" value={contrato.superintendenteNombre || "—"} />
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20 }}>
@@ -76,7 +539,7 @@ export function TabExpediente({ rol: _rol }: TabExpedienteProps) {
               textAlign: "left",
               padding: "10px 14px",
               fontSize: 12.5,
-              color: sec === s ? obra : ink,
+              color: sec === s ? obra : C.fgMuted,
               fontWeight: sec === s ? 600 : 400,
               background: sec === s ? obraSoft : "transparent",
               border: "none",
@@ -92,35 +555,34 @@ export function TabExpediente({ rol: _rol }: TabExpedienteProps) {
       </Card>
 
       <Card style={{ padding: "22px 24px" }}>
-        <div style={{ fontFamily: "'IBM Plex Serif', serif", fontWeight: 700, fontSize: 18, marginBottom: 20, color: ink }}>
+        <div
+          style={{
+            fontFamily: "'IBM Plex Serif', serif",
+            fontWeight: 700,
+            fontSize: 18,
+            marginBottom: 20,
+            color: C.fg,
+          }}
+        >
           {sec}
         </div>
 
         {sec === "Datos generales" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            {contrato ? (
-              <>
-                <Field label="Número de contrato" value={contrato.numeroContrato} />
-                <Field label="Tipo de contrato" value={TIPO_CONTRATO[contrato.tipo] ?? String(contrato.tipo)} />
-                <Field label="Monto contratado" value={fmtMXN(contrato.montoContratado)} />
-                <Field label="Importe total catálogo" value={fmtMXN(contrato.importeTotalCatalogo)} />
-                <Field label="Fecha de inicio" value={contrato.fechaInicio} />
-                <Field label="Fecha de término" value={contrato.fechaTermino} />
-                <Field label="Dependencia contratante" value={contrato.dependenciaContratante} />
-                <Field label="Contratista" value={contrato.contratistaEmpresa} />
-              </>
-            ) : (
-              <div style={{ fontSize: 12.5, color: muted, gridColumn: "span 2" }}>Cargando datos...</div>
+          <>
+            {!dataLoaded && (
+              <div style={{ fontSize: 12.5, color: muted }}>Cargando datos...</div>
             )}
-          </div>
+            {dataLoaded && isEditing && renderContratoForm()}
+            {dataLoaded && !isEditing && contrato && renderContratoView()}
+          </>
         )}
 
         {sec === "Catálogo" && (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
             <TableHeader cols={["Clave", "Descripción", "Unidad", "Cant.", "P.U.", "Importe"]} />
             <tbody>
-              {(contrato?.conceptoContratos ?? []).map((c: any, i: number) => (
-                <tr key={c.id} style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}>
+              {(contrato?.conceptoContratos ?? []).map((c: any) => (
+                <tr key={c.id} style={{ background: "transparent" }}>
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}`, fontFamily: "JetBrains Mono", fontSize: 11.5, color: obra }}>{c.clave}</td>
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>{c.descripcion}</td>
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}`, fontFamily: "JetBrains Mono", fontSize: 11.5 }}>{c.unidadMedida}</td>
@@ -129,11 +591,11 @@ export function TabExpediente({ rol: _rol }: TabExpedienteProps) {
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}`, fontFamily: "JetBrains Mono", fontSize: 11.5, fontWeight: 600 }}>{fmtMXN(c.importe)}</td>
                 </tr>
               ))}
-              <tr style={{ background: ink }}>
-                <td colSpan={5} style={{ padding: "10px 14px", color: paper2, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <tr style={{ background: C.blue }}>
+                <td colSpan={5} style={{ padding: "10px 14px", color: "#fff", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Importe total del contrato
                 </td>
-                <td style={{ padding: "10px 14px", color: paper2, fontFamily: "JetBrains Mono", fontWeight: 700, fontSize: 13 }}>
+                <td style={{ padding: "10px 14px", color: "#fff", fontFamily: "JetBrains Mono", fontWeight: 700, fontSize: 13 }}>
                   {fmtMXN(contrato?.montoContratado ?? 0)}
                 </td>
               </tr>
@@ -183,7 +645,7 @@ export function TabExpediente({ rol: _rol }: TabExpedienteProps) {
                   <XAxis dataKey="mes" tick={{ fontSize: 11, fill: muted }} />
                   <YAxis tick={{ fontSize: 11, fill: muted }} unit="%" domain={[0, 100]} />
                   <Tooltip
-                    contentStyle={{ background: paper2, border: `1px solid ${rule}`, borderRadius: 3, fontSize: 12 }}
+                    contentStyle={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, fontSize: 12, color: C.fg }}
                     formatter={(v: number | null) => (v !== null ? [`${v}%`] : ["—"])}
                   />
                   <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />

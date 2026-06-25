@@ -12,9 +12,10 @@ import { AlertsPanel } from "../../../components/AlertsPanel";
 import { finiquitoService } from "../services/finiquitoService";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
-  ink, paper2, rule, folio, obra, aprobado, aprobadoSoft,
+  rule, folio, obra, aprobado, aprobadoSoft,
   observado, observadoSoft, pagado, muted,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 const CONTRATO_ID = 1;
 
@@ -220,8 +221,8 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
               </div>
               <div
                 style={{
-                  background: ink,
-                  color: paper2,
+                  background: C.surface2,
+                  color: C.fg,
                   borderRadius: 4,
                   padding: "16px 20px",
                   display: "flex",
@@ -318,7 +319,7 @@ export function TabFiniquito({ rol }: TabFiniquitoProps) {
                 padding: 16,
                 textAlign: "center",
                 cursor: "pointer",
-                background: "#FAF8F2",
+                background: C.surface2,
               }}
               onClick={() => {}}
             >

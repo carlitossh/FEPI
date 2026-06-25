@@ -1,4 +1,13 @@
-export type EstadoEst = "Borrador" | "Enviada" | "Observada" | "Aprobada" | "Pagada";
+export type EstadoEst =
+  | "Borrador"
+  | "Enviada"
+  | "ObservadaSupervision"
+  | "AprobadaSupervision"
+  | "RechazadaResidencia"
+  | "AprobadaResidencia"
+  | "Cancelada";
+
+export type EstadoPagoEst = "SinPago" | "PagoParcial" | "Pagada";
 
 export interface ConceptoEstimacion {
   clave: string;
@@ -23,18 +32,32 @@ export interface HistorialEstimacion {
   estadoNuevo: string;
   fecha: string;
   usuario: string;
+  comentario?: string;
+}
+
+export interface PagoEstimacion {
+  id: number;
+  fechaPago: string;
+  referenciaBancaria: string;
+  montoPagado: number;
+  usuarioRegistroId?: number;
+  fechaRegistro: string;
 }
 
 export interface Estimacion {
   id: number;
   periodo: string;
   monto: number;
+  montoPagadoAcumulado: number;
+  saldoPendientePago: number;
   estado: EstadoEst;
+  estadoPago: EstadoPagoEst;
   dias?: string;
   conceptos: ConceptoEstimacion[];
   notasVinculadas: string[];
   observaciones: ObservacionEstimacion[];
   historial: HistorialEstimacion[];
+  pagos: PagoEstimacion[];
 }
 
 export interface ConceptoCatalogo {

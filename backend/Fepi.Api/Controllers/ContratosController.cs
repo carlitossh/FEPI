@@ -49,6 +49,16 @@ public class ContratosController : ControllerBase
         return Ok(await _service.ListarPorDependenciaAsync(dependencia, estado, ct));
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Actualizar(
+        int id,
+        [FromBody] ActualizarContratoDto dto,
+        CancellationToken ct)
+    {
+        await _service.ActualizarAsync(id, dto, ct);
+        return NoContent();
+    }
+
     [HttpPut("{id:int}/programa-obra")]
     public async Task<IActionResult> ActualizarProgramaObra(
         int id,
@@ -106,7 +116,10 @@ public class ContratosController : ControllerBase
 
     [HttpGet("{id:int}/finiquito")]
     public async Task<ActionResult<FiniquitoDto>> ObtenerFiniquito(int id, CancellationToken ct)
-        => Ok(await _entregaService.ObtenerFiniquitoAsync(id, ct));
+    {
+        var result = await _entregaService.ObtenerFiniquitoAsync(id, ct);
+        return result is null ? NotFound() : Ok(result);
+    }
 
     [HttpPost("{id:int}/cierre")]
     public async Task<IActionResult> RegistrarCierre(

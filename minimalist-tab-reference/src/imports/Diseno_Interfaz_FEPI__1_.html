@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FEPI — Diseño de Interfaz Completo</title>
+<style>
+  :root{
+    /* ---- Token system: "Sello de obra" ----
+       Inspired by official Mexican public-works documentation:
+       carátulas, folios, dictámenes técnicos, sellos de Dependencia.
+       Palette pulls from a stamped blueprint/ledger aesthetic, not a SaaS dashboard. */
+    --ink:        #1A2238;   /* near-black navy, body text */
+    --paper:      #F7F5EF;   /* warm ledger paper, page background */
+    --paper-2:    #FFFFFF;   /* card surfaces */
+    --rule:       #D8D2C2;   /* hairline rules on paper */
+    --folio:      #8C2F2F;   /* sello rojo — folio stamps, critical alerts */
+    --folio-soft: #F3E4E0;
+    --obra:       #1F3864;   /* obra blue — primary actions, headers */
+    --obra-soft:  #DCE6F2;
+    --aprobado:   #2D6A4F;   /* dictamen verde */
+    --aprobado-soft:#DEEFE5;
+    --observado:  #B8860B;   /* dictamen ámbar */
+    --observado-soft:#F6EAD0;
+    --muted:      #6B6557;
+    --mono-line:  #C9C2AC;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans","Segoe UI",Arial,sans-serif;}
+  h1,h2,h3,h4{font-family:"IBM Plex Serif", Georgia, serif; font-weight:600; letter-spacing:-0.01em;}
+
+  /* ===== Top nav ===== */
+  .topbar{position:sticky;top:0;z-index:50;background:var(--ink);color:var(--paper);padding:14px 28px;display:flex;align-items:center;gap:18px;border-bottom:3px solid var(--folio);}
+  .topbar .seal{width:30px;height:30px;border:2px solid var(--paper);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Serif",serif;font-weight:700;font-size:13px;}
+  .topbar .title{font-family:"IBM Plex Serif",serif;font-weight:700;font-size:17px;letter-spacing:0.02em;}
+  .topbar .sub{font-size:12px;color:#C7C2B0;margin-left:auto;}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;padding:16px 28px;background:#EFEAE0;border-bottom:1px solid var(--rule);position:sticky;top:61px;z-index:40;}
+  .toc a{font-size:12px;color:var(--obra);text-decoration:none;border:1px solid var(--rule);padding:5px 10px;border-radius:3px;background:var(--paper-2);white-space:nowrap;}
+  .toc a:hover{border-color:var(--obra);}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:0 28px;}
+  section{padding:64px 0;border-bottom:1px solid var(--rule);}
+  section:last-child{border-bottom:none;}
+  .eyebrow{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--folio);font-weight:700;margin-bottom:8px;}
+  .section-title{font-size:30px;margin:0 0 6px;}
+  .section-desc{color:var(--muted);font-size:14.5px;max-width:760px;line-height:1.6;margin-bottom:36px;}
+
+  /* ===== Design system tokens display ===== */
+  .swatch-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin:24px 0 40px;}
+  .swatch{border-radius:4px;overflow:hidden;border:1px solid var(--rule);}
+  .swatch .fill{height:64px;}
+  .swatch .label{background:var(--paper-2);padding:8px 10px;font-size:11px;}
+  .swatch .label b{display:block;font-size:11.5px;}
+  .swatch .label span{color:var(--muted);font-family:monospace;}
+
+  .type-sample{display:flex;flex-direction:column;gap:18px;margin-bottom:40px;}
+  .type-row{display:flex;align-items:baseline;gap:24px;border-bottom:1px dashed var(--rule);padding-bottom:14px;}
+  .type-row .tag{width:160px;font-size:11px;color:var(--muted);font-family:monospace;flex-shrink:0;}
+  .type-row .sample{flex:1;}
+
+  /* ===== Wireframe boxes (low-fi) ===== */
+  .wf-screen{background:var(--paper-2);border:1px solid var(--ink);position:relative;margin-bottom:46px;}
+  .wf-screen::before{content:attr(data-screen);position:absolute;top:-11px;left:14px;background:var(--paper);padding:0 8px;font-family:monospace;font-size:11px;color:var(--folio);font-weight:700;border:1px solid var(--ink);}
+  .wf-bar{display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:var(--paper);padding:10px 16px;font-size:12px;font-family:monospace;}
+  .wf-bar .role{background:var(--folio);color:#fff;padding:2px 8px;border-radius:2px;font-size:10px;}
+  .wf-body{padding:18px;}
+  .wf-row{display:flex;gap:14px;margin-bottom:14px;}
+  .wf-col{flex:1;}
+  .box{border:1.5px dashed var(--mono-line);background:#FCFBF7;padding:10px 12px;font-size:11.5px;color:var(--muted);min-height:34px;display:flex;align-items:center;font-family:monospace;}
+  .box.tall{min-height:90px;align-items:flex-start;}
+  .box.solid{border-style:solid;border-color:var(--obra);background:var(--obra-soft);color:var(--obra);font-weight:600;}
+  .box.alert{border-style:solid;border-color:var(--folio);background:var(--folio-soft);color:var(--folio);font-weight:600;}
+  .box.ok{border-style:solid;border-color:var(--aprobado);background:var(--aprobado-soft);color:var(--aprobado);font-weight:600;}
+  .box.warn{border-style:solid;border-color:var(--observado);background:var(--observado-soft);color:var(--observado);font-weight:600;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .grid-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .flow-note{font-size:12px;color:var(--muted);margin-top:10px;padding:8px 12px;background:#EFEAE0;border-left:3px solid var(--folio);}
+  .table-mock{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace;}
+  .table-mock th{background:var(--ink);color:var(--paper);text-align:left;padding:6px 8px;}
+  .table-mock td{padding:6px 8px;border-bottom:1px solid var(--rule);color:var(--muted);}
+
+  .screen-caption{font-size:12.5px;color:var(--muted);margin:-30px 0 16px;line-height:1.6;}
+  .screen-caption b{color:var(--ink);}
+
+  /* ===== Hi-fi mockup wrapper ===== */
+  .hifi{background:#fff;border-radius:6px;box-shadow:0 8px 30px rgba(26,34,56,0.15);overflow:hidden;margin-bottom:18px;border:1px solid var(--rule);}
+  .hifi-top{background:var(--ink);color:var(--paper);padding:0;}
+  .hifi-band{background:var(--folio);color:#fff;font-size:11px;padding:5px 20px;letter-spacing:0.06em;display:flex;justify-content:space-between;}
+  .hifi-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;}
+  .hifi-header .id{font-family:"IBM Plex Serif",serif;font-weight:700;font-size:18px;}
+  .hifi-header .meta{font-size:11px;color:#C7C2B0;}
+  .hifi-tabs{display:flex;gap:0;background:#EFEAE0;border-bottom:1px solid var(--rule);}
+  .hifi-tab{padding:11px 18px;font-size:12.5px;color:var(--muted);border-bottom:3px solid transparent;cursor:default;}
+  .hifi-tab.active{color:var(--obra);border-bottom-color:var(--obra);background:#fff;font-weight:600;}
+  .hifi-body{display:flex;}
+  .hifi-main{flex:2.1;padding:22px;border-right:1px solid var(--rule);}
+  .hifi-side{flex:1;padding:22px;background:#FAF8F2;}
+
+  .field-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:3px;}
+  .field-value{font-size:14px;color:var(--ink);margin-bottom:14px;font-weight:500;}
+  .kpi-row{display:flex;gap:16px;margin-bottom:20px;}
+  .kpi{flex:1;border:1px solid var(--rule);border-radius:4px;padding:12px 14px;background:#fff;}
+  .kpi .v{font-family:"IBM Plex Serif",serif;font-size:22px;font-weight:700;color:var(--obra);}
+  .kpi .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;}
+
+  .concept-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:18px;}
+  .concept-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);border-bottom:2px solid var(--ink);padding:6px 8px;}
+  .concept-table td{padding:8px 8px;border-bottom:1px solid var(--rule);}
+  .concept-table tr.flag td{background:var(--folio-soft);}
+  .concept-table tr.flag td:first-child{border-left:3px solid var(--folio);}
+
+  .note-card{background:#fff;border:1px solid var(--rule);border-left:3px solid var(--observado);border-radius:3px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;}
+  .note-card .ref{font-family:monospace;font-size:10.5px;color:var(--observado);font-weight:700;}
+  .note-card .who{font-size:10.5px;color:var(--muted);margin-top:4px;}
+
+  .pill{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:11px;font-weight:600;}
+  .pill.enviada{background:var(--obra-soft);color:var(--obra);}
+  .pill.observada{background:var(--observado-soft);color:var(--observado);}
+  .pill.aprobada{background:var(--aprobado-soft);color:var(--aprobado);}
+
+  .btn{display:inline-block;font-size:12.5px;font-weight:600;padding:9px 16px;border-radius:3px;border:none;cursor:default;}
+  .btn.primary{background:var(--obra);color:#fff;}
+  .btn.ghost{background:transparent;border:1px solid var(--rule);color:var(--ink);}
+  .btn.danger{background:var(--folio);color:#fff;}
+
+  .day-counter{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--rule);border-radius:4px;padding:10px 14px;margin-bottom:18px;}
+  .day-counter .ring{width:38px;height:38px;border-radius:50%;border:4px solid var(--observado);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--observado);flex-shrink:0;}
+  .day-counter .txt{font-size:12px;color:var(--muted);}
+  .day-counter .txt b{color:var(--ink);}
+
+  /* Bitácora mobile mockup */
+  .phone{width:340px;margin:0 auto;border-radius:28px;border:10px solid var(--ink);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.25);background:#fff;}
+  .phone-screen{background:#fff;min-height:560px;}
+  .phone-status{background:var(--ink);color:var(--paper);font-size:10px;padding:6px 16px;display:flex;justify-content:space-between;}
+  .phone-app-bar{background:var(--obra);color:#fff;padding:14px 16px;}
+  .phone-app-bar .folio{font-family:monospace;font-size:11px;opacity:0.85;}
+  .phone-app-bar .h{font-family:"IBM Plex Serif",serif;font-weight:700;font-size:16px;margin-top:2px;}
+  .phone-body{padding:16px;}
+  .phone-field{margin-bottom:14px;}
+  .phone-field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:5px;}
+  .phone-field .input{border:1.5px solid var(--rule);border-radius:4px;padding:10px 12px;font-size:13px;color:var(--ink);background:#FAF8F2;}
+  .phone-tag-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .phone-tag{font-size:11px;border:1px solid var(--obra);color:var(--obra);padding:5px 10px;border-radius:13px;}
+  .phone-tag.active{background:var(--obra);color:#fff;}
+  .phone-sig-row{display:flex;gap:8px;margin-top:6px;}
+  .sig-chip{flex:1;border:1.5px dashed var(--mono-line);border-radius:4px;padding:10px 6px;text-align:center;font-size:10px;color:var(--muted);}
+  .sig-chip.done{border-style:solid;border-color:var(--aprobado);background:var(--aprobado-soft);color:var(--aprobado);font-weight:600;}
+  .phone-cta{background:var(--folio);color:#fff;text-align:center;padding:13px;border-radius:4px;font-weight:700;font-size:13px;margin-top:18px;}
+
+  /* Dashboard mockup */
+  .dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;}
+  .dash-card{background:#fff;border:1px solid var(--rule);border-radius:5px;padding:18px;margin-bottom:18px;}
+  .dash-card h4{margin:0 0 14px;font-size:13px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);font-family:"IBM Plex Sans",sans-serif;font-weight:700;}
+  .curve-s{position:relative;height:160px;border-bottom:1px solid var(--rule);border-left:1px solid var(--rule);}
+  .alert-line{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:12px;}
+  .alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .alert-dot.r{background:var(--folio);}
+  .alert-dot.y{background:var(--observado);}
+  .contract-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule);font-size:12.5px;}
+  .contract-row .name{font-weight:600;}
+  .contract-row .pct{font-family:monospace;color:var(--obra);font-weight:700;}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:14px;height:14px;display:inline-block;border-radius:2px;}
+
+  footer{padding:40px 28px;text-align:center;color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="seal">FE</div>
+  <div class="title">FEPI — Diseño de Interfaz</div>
+  <div class="sub">Sistema de Seguimiento en Ejecución de Obra Pública · v1 lista para desarrollo</div>
+</div>
+
+<div class="toc">
+  <a href="#sistema">0. Sistema de diseño</a>
+  <a href="#sv01">SV-01 Estimaciones</a>
+  <a href="#sv02">SV-02 Avance / Curva S</a>
+  <a href="#sv03">SV-03 Bitácora</a>
+  <a href="#sv04">SV-04 Convenios</a>
+  <a href="#sv05">SV-05 Entrega-Recepción</a>
+  <a href="#sv06">SV-06 Alertas</a>
+  <a href="#sv07">SV-07 Expediente</a>
+  <a href="#sv10">SV-10 Dashboard</a>
+  <a href="#hifi">Mockups alta fidelidad</a>
+</div>
+
+<div class="wrap">
+
+<!-- ============================================================ -->
+<!-- 0. DESIGN SYSTEM -->
+<!-- ============================================================ -->
+<section id="sistema">
+  <div class="eyebrow">00 · Fundamento visual</div>
+  <h1 class="section-title">Sistema de diseño — "Sello de Obra"</h1>
+  <p class="section-desc">
+    FEPI no es un producto de consumo: es el instrumento de control de un contrato de obra pública regido por la LOPSRM. El lenguaje visual se inspira en los artefactos reales del expediente — carátulas, folios, dictámenes técnicos y sellos de dependencia — en vez del lenguaje genérico de dashboards SaaS. Fondo color papel de libro de actas, tinta azul "obra" para lo operativo, rojo "sello" reservado únicamente para folios, alertas críticas y plazos vencidos.
+  </p>
+
+  <h3>Paleta</h3>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="fill" style="background:#1A2238"></div><div class="label"><b>Tinta</b><span>#1A2238</span></div></div>
+    <div class="swatch"><div class="fill" style="background:#F7F5EF"></div><div class="label"><b>Papel</b><span>#F7F5EF</span></div></div>
+    <div class="swatch"><div class="fill" style="background:#1F3864"></div><div class="label"><b>Obra (azul)</b><span>#1F3864</span></div></div>
+    <div class="swatch"><div class="fill" style="background:#8C2F2F"></div><div class="label"><b>Sello (rojo)</b><span>#8C2F2F</span></div></div>
+    <div class="swatch"><div class="fill" style="background:#2D6A4F"></div><div class="label"><b>Aprobado</b><span>#2D6A4F</span></div></div>
+    <div class="swatch"><div class="fill" style="background:#B8860B"></div><div class="label"><b>Observado</b><span>#B8860B</span></div></div>
+  </div>
+
+  <h3>Tipografía</h3>
+  <div class="type-sample">
+    <div class="type-row"><div class="tag">Display / IBM Plex Serif 700</div><div class="sample" style="font-family:'IBM Plex Serif',serif;font-weight:700;font-size:28px;">Estimación N.° 014 — Aprobada</div></div>
+    <div class="type-row"><div class="tag">Cuerpo / IBM Plex Sans 400-600</div><div class="sample" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;">El supervisor revisa cantidades y precios contra el catálogo de conceptos del contrato.</div></div>
+    <div class="type-row"><div class="tag">Datos / monospace</div><div class="sample" style="font-family:monospace;font-size:13.5px;">FOLIO-0142 · 18 días de 20 hábiles · $1,248,300.00</div></div>
+  </div>
+
+  <h3>Componentes de estado (usados en todas las pantallas)</h3>
+  <div class="grid-4" style="margin-bottom:10px;">
+    <div class="box solid">Borrador / Enviada</div>
+    <div class="box warn">Observada</div>
+    <div class="box ok">Aprobada</div>
+    <div class="box alert">Vencido / Crítico</div>
+  </div>
+  <p class="screen-caption">Estos cuatro estados visuales (azul, ámbar, verde, rojo) se repiten consistentemente en Estimaciones, Convenios, Bitácora y Alertas, de modo que el usuario reconoce el significado del color sin leer la etiqueta.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-01 ESTIMACIONES -->
+<!-- ============================================================ -->
+<section id="sv01">
+  <div class="eyebrow">SV-01</div>
+  <h2 class="section-title">Gestión de Estimaciones</h2>
+  <p class="section-desc">5 pantallas: bandeja, captura/borrador, vinculación de notas, revisión técnica con panel de observaciones, y pago.</p>
+
+  <div class="wf-screen" data-screen="PANT-01 · Bandeja de estimaciones">
+    <div class="wf-bar"><span>FEPI / Contrato CT-2026-014</span><span class="role">Superintendente</span></div>
+    <div class="wf-body">
+      <div class="wf-row">
+        <div class="box solid" style="flex:0 0 160px;">+ Nueva estimación</div>
+        <div class="box" style="flex:1">Filtro: estado · periodo · buscar folio</div>
+      </div>
+      <table class="table-mock">
+        <tr><th>N.°</th><th>Periodo</th><th>Monto</th><th>Estado</th><th>Días</th><th></th></tr>
+        <tr><td>014</td><td>Jun 2026</td><td>$1,248,300</td><td>Enviada</td><td>18/20</td><td>Ver</td></tr>
+        <tr><td>013</td><td>May 2026</td><td>$980,200</td><td>Aprobada</td><td>—</td><td>Ver</td></tr>
+        <tr><td>012</td><td>Abr 2026</td><td>$1,100,000</td><td>Pagada</td><td>—</td><td>Ver</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-01, HU-06</b>. Color de fila/estado reutiliza los 4 tokens de estado. La columna "Días" muestra el contador de plazo legal solo cuando aplica (estado Enviada/Observada).</p>
+
+  <div class="wf-screen" data-screen="PANT-02 · Captura de estimación (Borrador)">
+    <div class="wf-bar"><span>Estimación N.° 015 · Borrador</span><span class="role">Superintendente</span></div>
+    <div class="wf-body">
+      <div class="grid-3" style="margin-bottom:14px;">
+        <div class="box">N.° contrato · periodo</div>
+        <div class="box">Monto estimado acumulado</div>
+        <div class="box">Saldo pendiente</div>
+      </div>
+      <div class="box tall">Tabla de conceptos: clave · descripción · unidad · cant. contratada · cant. ejecutada · PU · importe</div>
+      <div class="wf-row" style="margin-top:14px;">
+        <div class="box" style="flex:1">[Adjuntar generadores / memorias]</div>
+        <div class="box solid" style="flex:0 0 200px;">Notas de bitácora vinculadas →</div>
+      </div>
+      <div class="wf-row">
+        <div class="box ghost" style="flex:0 0 140px;">Guardar borrador</div>
+        <div class="box alert" style="flex:0 0 140px;">Enviar →</div>
+      </div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-01</b>. El botón "Enviar" abre confirmación modal (no mostrada) que advierte: "Esta acción notificará a Supervisión y Residencia, e inicia el plazo legal de 20 días hábiles."</p>
+
+  <div class="wf-screen" data-screen="PANT-03 · Panel de vinculación de notas de bitácora">
+    <div class="wf-bar"><span>Vincular notas · Estimación N.° 015</span><span class="role">Superintendente</span></div>
+    <div class="wf-body">
+      <div class="grid-3" style="margin-bottom:14px;">
+        <div class="box">Filtro: asunto/tipo</div>
+        <div class="box">Filtro: rango de fechas</div>
+        <div class="box">Filtro: actor (1.ª firma)</div>
+      </div>
+      <table class="table-mock">
+        <tr><th>☑</th><th>Folio</th><th>Fecha</th><th>Asunto</th><th>Estado</th></tr>
+        <tr><td>☑</td><td>0138</td><td>03-jun</td><td>Term. losa eje B</td><td>Cerrada</td></tr>
+        <tr><td>☐</td><td>0140</td><td>09-jun</td><td>Term. cimentación</td><td style="color:var(--folio)">Ya vinculada ⚠</td></tr>
+        <tr><td>☑</td><td>0141</td><td>14-jun</td><td>Entrega trabe</td><td>Cerrada</td></tr>
+      </table>
+      <div class="box solid" style="margin-top:12px;width:160px;">Importar selección</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-02</b>. El folio 0140 muestra advertencia inline cuando ya fue usado en otra estimación — exactamente el caso que el profesor señaló en la revisión.</p>
+
+  <div class="wf-screen" data-screen="PANT-04 · Revisión técnica con panel de observaciones (clave)">
+    <div class="wf-bar"><span>Estimación N.° 014 · Enviada</span><span class="role">Supervisor Externo</span></div>
+    <div class="wf-body">
+      <div class="box alert" style="margin-bottom:14px;width:260px;">⏱ Día 18 de 20 hábiles — 2 restantes</div>
+      <div class="wf-row">
+        <div class="wf-col" style="flex:2;">
+          <div class="box tall">DOCUMENTO DEL CONTRATISTA (solo lectura)<br>— Carátula<br>— Generadores<br>— Notas vinculadas: 0138, 0141</div>
+        </div>
+        <div class="wf-col" style="flex:1.2;">
+          <div class="box solid" style="margin-bottom:8px;">PANEL DE OBSERVACIONES (editable)</div>
+          <div class="box tall">+ Nueva observación<br>Ref: concepto / página<br>Texto: ...<br>[Guardar]</div>
+        </div>
+      </div>
+      <div class="wf-row" style="margin-top:14px;">
+        <div class="box warn" style="flex:1">Marcar "Observada" →</div>
+        <div class="box ok" style="flex:1">Marcar "Aprobada" →</div>
+      </div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-03, HU-04</b> — la pantalla más importante de la corrección del profesor: el documento del contratista es de <b>solo lectura</b>; el panel de observaciones es la única superficie editable por Supervisión. Ver mockup de alta fidelidad más abajo.</p>
+
+  <div class="wf-screen" data-screen="PANT-05 · Registro de pago (Área Financiera)">
+    <div class="wf-bar"><span>Estimación N.° 013 · Aprobada</span><span class="role">Área Financiera</span></div>
+    <div class="wf-body">
+      <div class="grid-3">
+        <div class="box">Fecha de pago</div>
+        <div class="box">Referencia bancaria</div>
+        <div class="box">Monto pagado</div>
+      </div>
+      <div class="box" style="margin-top:12px;">Desglose de ajuste por convenio modificatorio (si aplica)</div>
+      <div class="box solid" style="margin-top:12px;width:160px;">Confirmar pago</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-05</b>.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-02 -->
+<!-- ============================================================ -->
+<section id="sv02">
+  <div class="eyebrow">SV-02</div>
+  <h2 class="section-title">Control de Avance Físico y Curva S</h2>
+  <div class="wf-screen" data-screen="PANT-06 · Registro de avance diario">
+    <div class="wf-bar"><span>Avance diario · 19-jun-2026</span><span class="role">Residencia / Supervisión</span></div>
+    <div class="wf-body">
+      <div class="grid-2">
+        <div class="box">Concepto (catálogo) · cantidad ejecutada</div>
+        <div class="box tall">📷 Evidencia fotográfica (obligatoria)</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Descripción de actividades realizadas</div>
+      <div class="box solid" style="margin-top:12px;width:140px;">Guardar registro</div>
+    </div>
+  </div>
+  <div class="wf-screen" data-screen="PANT-07 · Curva S del contrato">
+    <div class="wf-bar"><span>Curva S · Contrato CT-2026-014</span><span class="role">Todos los roles</span></div>
+    <div class="wf-body">
+      <div class="box tall" style="height:140px;">[Gráfica: avance programado vs. avance real]</div>
+      <div class="grid-3" style="margin-top:12px;">
+        <div class="box ok">% Cumplimiento: 92%</div>
+        <div class="box warn">% Atraso: 8%</div>
+        <div class="box">Periodo actual: Jun 2026</div>
+      </div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-07, HU-08</b>. La vista de Dependencia agrega esta misma gráfica por cartera de contratos.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-03 BITÁCORA -->
+<!-- ============================================================ -->
+<section id="sv03">
+  <div class="eyebrow">SV-03</div>
+  <h2 class="section-title">Bitácora Electrónica (BEOP)</h2>
+  <p class="section-desc">Diseño mobile-first para captura en campo (HU-10) — ver mockup de alta fidelidad. Wireframes de escritorio para apertura, búsqueda y minutas/incidencias.</p>
+
+  <div class="wf-screen" data-screen="PANT-08 · Apertura de bitácora (carátula)">
+    <div class="wf-bar"><span>Bitácora · CT-2026-014 · Sin abrir</span><span class="role">Residencia</span></div>
+    <div class="wf-body">
+      <div class="grid-3">
+        <div class="box">Contrato (auto, SV-07)</div>
+        <div class="box">Dependencia / contratista</div>
+        <div class="box">Residente / Supervisor / Superintendente</div>
+      </div>
+      <div class="box" style="margin-top:12px;">Fecha de apertura formal</div>
+      <div class="box solid" style="margin-top:12px;width:220px;">Confirmar apertura → Nota 001</div>
+    </div>
+  </div>
+
+  <div class="wf-screen" data-screen="PANT-09 · Listado / búsqueda de bitácora">
+    <div class="wf-bar"><span>Bitácora · CT-2026-014</span><span class="role">Todos los roles</span></div>
+    <div class="wf-body">
+      <div class="grid-4">
+        <div class="box">+ Nota</div><div class="box">+ Minuta</div><div class="box">+ Incidencia</div><div class="box solid">Exportar selección</div>
+      </div>
+      <div class="grid-3" style="margin-top:12px;">
+        <div class="box">Filtro: asunto/tipo</div><div class="box">Filtro: fecha</div><div class="box">Filtro: actor</div>
+      </div>
+      <table class="table-mock" style="margin-top:12px;">
+        <tr><th>Folio</th><th>Tipo</th><th>Fecha</th><th>Asunto</th><th>Firmas</th></tr>
+        <tr><td>0001</td><td>Apertura</td><td>01-mar</td><td>Inicio formal</td><td>3/3</td></tr>
+        <tr><td>0140</td><td>Nota</td><td>09-jun</td><td>Term. cimentación</td><td>2/3 ⏳</td></tr>
+        <tr><td>—</td><td>Incidencia</td><td>11-jun</td><td>Falla eléctrica</td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-09, HU-13</b>. El estado "2/3 ⏳" reutiliza el patrón de HU-11 (alerta de silencio administrativo si vence el plazo de respuesta).</p>
+
+  <div class="wf-screen" data-screen="PANT-10 · Minuta de reunión / Incidencia">
+    <div class="wf-bar"><span>Nueva incidencia</span><span class="role">Supervisión</span></div>
+    <div class="wf-body">
+      <div class="grid-2">
+        <div class="box">Fecha del evento</div>
+        <div class="box tall">📷 Archivo fotográfico</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Descripción de la incidencia</div>
+      <div class="box warn" style="margin-top:12px;width:220px;">Generar nota de bitácora →</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-12, HU-14</b>.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-04 -->
+<!-- ============================================================ -->
+<section id="sv04">
+  <div class="eyebrow">SV-04</div>
+  <h2 class="section-title">Convenios Modificatorios</h2>
+  <div class="wf-screen" data-screen="PANT-11 · Solicitud de convenio modificatorio">
+    <div class="wf-bar"><span>Nueva solicitud · CT-2026-014</span><span class="role">Superintendente</span></div>
+    <div class="wf-body">
+      <div class="grid-3">
+        <div class="box">Tipo: monto / plazo / catálogo</div>
+        <div class="box">Variación acumulada proyectada: 18%</div>
+        <div class="box alert">Límite legal 25% — alerta si se excede</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Justificación técnica + documentación soporte</div>
+      <div class="box solid" style="margin-top:12px;width:160px;">Enviar solicitud</div>
+    </div>
+  </div>
+  <div class="wf-screen" data-screen="PANT-12 · Seguimiento de solicitud (timeline de flujo)">
+    <div class="wf-bar"><span>Solicitud CM-008 · En evaluación de Dependencia</span><span class="role">Todos los roles del flujo</span></div>
+    <div class="wf-body">
+      <div class="grid-4">
+        <div class="box ok">1. Solicitada</div>
+        <div class="box ok">2. Dictamen Supervisión</div>
+        <div class="box solid">3. Promovida (Residencia)</div>
+        <div class="box">4. Resolución Dependencia</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Expediente: justificación · dictamen técnico · recomendación de residencia</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-15 a HU-19</b>. El timeline de 4 pasos da visibilidad de estado a todos los actores sin que ninguno tenga que preguntar "¿en qué va mi solicitud?" — necesidad S-N4 explícita de la matriz.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-05 -->
+<!-- ============================================================ -->
+<section id="sv05">
+  <div class="eyebrow">SV-05</div>
+  <h2 class="section-title">Entrega-Recepción, Finiquito y Terminación</h2>
+  <div class="wf-screen" data-screen="PANT-13 · Cierre físico / Acta de entrega-recepción">
+    <div class="wf-bar"><span>Entrega-Recepción · CT-2026-014</span><span class="role">Residencia</span></div>
+    <div class="wf-body">
+      <div class="grid-3">
+        <div class="box">Fecha de entrega</div>
+        <div class="box">Estado de garantías vigentes</div>
+        <div class="box">📷 Evidencia / acta</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Observaciones del estado físico de la obra</div>
+      <div class="box solid" style="margin-top:12px;width:200px;">Generar acta →</div>
+    </div>
+  </div>
+  <div class="wf-screen" data-screen="PANT-14 · Finiquito (consolidado automático)">
+    <div class="wf-bar"><span>Finiquito · CT-2026-014</span><span class="role">Área Financiera</span></div>
+    <div class="wf-body">
+      <div class="box alert" style="width:260px;margin-bottom:12px;">⏱ Semáforo 60 días: día 38 — amarillo</div>
+      <table class="table-mock">
+        <tr><th>Concepto</th><th>Monto</th></tr>
+        <tr><td>Estimaciones pagadas</td><td>$10,200,000</td></tr>
+        <tr><td>Pendientes</td><td>$0</td></tr>
+        <tr><td>Deductivas</td><td>-$120,000</td></tr>
+        <tr><td>Retenciones</td><td>-$80,000</td></tr>
+        <tr><td><b>Monto final</b></td><td><b>$10,000,000</b></td></tr>
+      </table>
+      <div class="box solid" style="margin-top:12px;width:180px;">Exportar finiquito PDF</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-20, HU-21, HU-22</b>. Todo el consolidado se calcula automáticamente; el usuario financiero no captura montos ya existentes en el sistema.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-06 -->
+<!-- ============================================================ -->
+<section id="sv06">
+  <div class="eyebrow">SV-06</div>
+  <h2 class="section-title">Alertas y Notificaciones</h2>
+  <div class="wf-screen" data-screen="PANT-15 · Panel persistente de alertas (lateral, todas las pantallas)">
+    <div class="wf-bar"><span>Panel de alertas</span><span class="role">Filtrado por rol activo</span></div>
+    <div class="wf-body">
+      <div class="box alert" style="margin-bottom:8px;">🔴 Estimación 014 — 2 días restantes de revisión</div>
+      <div class="box warn" style="margin-bottom:8px;">🟡 Nota 0140 — firma pendiente (supervisor)</div>
+      <div class="box warn" style="margin-bottom:8px;">🟡 Garantía de cumplimiento — vence en 22 días</div>
+      <div class="box" style="margin-bottom:8px;">⚪ Convenio CM-008 — pendiente de resolución</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-23, HU-24</b>. Este panel es un componente persistente (no una pantalla aislada) que aparece en el costado de todas las demás pantallas del sistema.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-07 -->
+<!-- ============================================================ -->
+<section id="sv07">
+  <div class="eyebrow">SV-07</div>
+  <h2 class="section-title">Expediente Digital y Registro de Contrato</h2>
+  <div class="wf-screen" data-screen="PANT-16 · Alta de contrato (carátula + catálogo + programa + garantías)">
+    <div class="wf-bar"><span>Nuevo contrato</span><span class="role">Residencia / Administrador</span></div>
+    <div class="wf-body">
+      <div class="grid-4">
+        <div class="box">N.° / tipo de contrato</div>
+        <div class="box">Monto contratado</div>
+        <div class="box">Fechas inicio/término</div>
+        <div class="box">Periodo de estimación</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Catálogo de conceptos: clave · descripción · unidad · cantidad · PU · importe (total auto-calculado)</div>
+      <div class="grid-2" style="margin-top:12px;">
+        <div class="box">Programa de obra (distribución por periodo)</div>
+        <div class="box">Garantías: tipo · monto · vigencia</div>
+      </div>
+    </div>
+  </div>
+  <div class="wf-screen" data-screen="PANT-17 · Expediente unificado (vista de consulta)">
+    <div class="wf-bar"><span>Expediente · CT-2026-014</span><span class="role">Supervisor Externo / Dependencia</span></div>
+    <div class="wf-body">
+      <div class="grid-4" style="margin-bottom:12px;">
+        <div class="box solid">Datos generales</div><div class="box">Catálogo</div><div class="box">Programa</div><div class="box">Garantías</div>
+      </div>
+      <div class="grid-3">
+        <div class="box">Convenios</div><div class="box">Estimaciones</div><div class="box">Bitácora</div>
+      </div>
+      <div class="box tall" style="margin-top:12px;">Documentación: contrato original, convenios firmados, actas (descarga directa)</div>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-25 a HU-28</b>. El expediente unificado es una vista de solo lectura que agrega todos los demás módulos por contrato_id — no requiere tablas propias.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- SV-10 -->
+<!-- ============================================================ -->
+<section id="sv10">
+  <div class="eyebrow">SV-10</div>
+  <h2 class="section-title">Panel Ejecutivo (Dashboard)</h2>
+  <div class="wf-screen" data-screen="PANT-18 · Dashboard por contrato">
+    <div class="wf-bar"><span>Dashboard · CT-2026-014</span><span class="role">Residencia / Supervisión / Financiera</span></div>
+    <div class="wf-body">
+      <div class="grid-4" style="margin-bottom:12px;">
+        <div class="box solid">Avance 92% vs 100% prog.</div>
+        <div class="box">Ejercido $10.2M / $11M</div>
+        <div class="box warn">2 estimaciones pendientes</div>
+        <div class="box alert">1 garantía por vencer</div>
+      </div>
+      <div class="box tall" style="height:130px;">[Curva S resumida]</div>
+    </div>
+  </div>
+  <div class="wf-screen" data-screen="PANT-19 · Dashboard agregado (vista de Dependencia)">
+    <div class="wf-bar"><span>Cartera de contratos</span><span class="role">Dependencia</span></div>
+    <div class="wf-body">
+      <table class="table-mock">
+        <tr><th>Contrato</th><th>Avance físico</th><th>Avance financiero</th><th>Desviación</th></tr>
+        <tr><td>CT-2026-014</td><td>92%</td><td>88%</td><td style="color:var(--observado)">4%</td></tr>
+        <tr><td>CT-2026-009</td><td>54%</td><td>70%</td><td style="color:var(--folio)">16% ⚠</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="screen-caption">Cubre <b>HU-30, HU-08</b>. Ordenado por desviación descendente, conforme a HU-08.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- HI-FI MOCKUPS -->
+<!-- ============================================================ -->
+<section id="hifi">
+  <div class="eyebrow">Mockups de alta fidelidad</div>
+  <h2 class="section-title">Las 3 pantallas que definen el sistema</h2>
+  <p class="section-desc">Estas tres pantallas concentran las correcciones más importantes del profesor: el panel de observaciones separado del documento original, la captura ágil en campo, y la visibilidad ejecutiva del contrato.</p>
+
+  <h3 style="margin-top:36px;">1 · Revisión técnica de estimación — panel de observaciones (HU-03)</h3>
+  <div class="hifi">
+    <div class="hifi-top">
+      <div class="hifi-band"><span>SELLO DIGITAL · FOLIO-EST-014</span><span>Plazo legal: Art. 55 LOPSRM — 20 días hábiles</span></div>
+      <div class="hifi-header">
+        <div>
+          <div class="id">Estimación N.° 014</div>
+          <div class="meta">Contrato CT-2026-014 · Periodo Junio 2026 · Superintendente: Ing. R. Domínguez</div>
+        </div>
+        <span class="pill enviada">Enviada</span>
+      </div>
+    </div>
+    <div class="hifi-tabs">
+      <div class="hifi-tab active">Carátula</div>
+      <div class="hifi-tab">Generadores</div>
+      <div class="hifi-tab">Notas vinculadas (2)</div>
+      <div class="hifi-tab">Historial</div>
+    </div>
+    <div class="hifi-body">
+      <div class="hifi-main">
+        <div class="day-counter">
+          <div class="ring">18/20</div>
+          <div class="txt">Quedan <b>2 días hábiles</b> para resolver esta estimación antes del vencimiento del plazo legal.</div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="v">$1,248,300</div><div class="l">Monto estimado</div></div>
+          <div class="kpi"><div class="v">$9,450,000</div><div class="l">Acumulado del contrato</div></div>
+          <div class="kpi"><div class="v">$1,550,000</div><div class="l">Saldo pendiente</div></div>
+        </div>
+        <table class="concept-table">
+          <tr><th>Clave</th><th>Descripción</th><th>Cant. ejecutada</th><th>Importe</th></tr>
+          <tr><td>03.012</td><td>Losa de cimentación f'c=250</td><td>120 m³</td><td>$486,000</td></tr>
+          <tr class="flag"><td>05.004</td><td>Trabe de liga eje B-C</td><td>34 ml</td><td>$210,300</td></tr>
+          <tr><td>06.001</td><td>Castillo K-1</td><td>18 pza</td><td>$95,400</td></tr>
+          <tr><td>07.002</td><td>Muro de block hueco 15cm</td><td>240 m²</td><td>$456,600</td></tr>
+        </table>
+        <p style="font-size:11px;color:var(--muted);margin:-8px 0 18px;">Documento del contratista — <b>solo lectura</b> en esta pantalla.</p>
+        <button class="btn ghost">Comparar contra programa de obra</button>
+      </div>
+      <div class="hifi-side">
+        <div style="font-size:12px;font-weight:700;color:var(--obra);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Panel de observaciones</div>
+        <div class="note-card">
+          <div class="ref">Concepto 05.004</div>
+          El cálculo de la trabe no coincide con el generador adjunto: reporta 34 ml, el generador muestra 31 ml.
+          <div class="who">Ing. L. Martínez · hace 2 horas</div>
+        </div>
+        <div class="note-card" style="border-left-color:var(--obra);">
+          <div class="ref" style="color:var(--obra);">General</div>
+          Falta la firma del residente en la nota de bitácora 0141 referenciada.
+          <div class="who">Ing. L. Martínez · hace 2 horas</div>
+        </div>
+        <button class="btn ghost" style="width:100%;margin-bottom:18px;">+ Nueva observación</button>
+        <div style="display:flex;gap:10px;">
+          <button class="btn" style="background:var(--observado);color:#fff;flex:1;">Observada</button>
+          <button class="btn primary" style="flex:1;background:var(--aprobado);">Aprobada</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:48px;">2 · Captura de nota de bitácora en campo (HU-10)</h3>
+  <div class="phone">
+    <div class="phone-screen">
+      <div class="phone-status"><span>9:41</span><span>📶 Sin red — modo local</span></div>
+      <div class="phone-app-bar">
+        <div class="folio">FOLIO-0142 (autoasignado)</div>
+        <div class="h">Nueva nota de bitácora</div>
+      </div>
+      <div class="phone-body">
+        <div class="phone-field">
+          <label>Tipo</label>
+          <div class="phone-tag-row">
+            <span class="phone-tag active">Aviso al residente</span>
+            <span class="phone-tag">Solicitud convenio</span>
+            <span class="phone-tag">Cambio procedimiento</span>
+          </div>
+        </div>
+        <div class="phone-field">
+          <label>Asunto</label>
+          <div class="input">Término de cimentación eje C-D</div>
+        </div>
+        <div class="phone-field">
+          <label>Contenido</label>
+          <div class="input" style="min-height:70px;">Se concluyó la cimentación del eje C-D conforme a proyecto. Se solicita verificación para liberar concepto en la próxima estimación.</div>
+        </div>
+        <div class="phone-field">
+          <label>Vincular a folio (opcional)</label>
+          <div class="input">—</div>
+        </div>
+        <div class="phone-field">
+          <label>Firmas</label>
+          <div class="phone-sig-row">
+            <div class="sig-chip done">Superintendente ✓</div>
+            <div class="sig-chip">Residencia</div>
+            <div class="sig-chip">Supervisión</div>
+          </div>
+        </div>
+        <div class="phone-cta">Firmar y registrar nota</div>
+      </div>
+    </div>
+  </div>
+  <p class="screen-caption" style="text-align:center;margin-top:14px;">Formulario corto, catálogo cerrado de tipos (no texto libre), pensado para captura de pie en obra. El folio se asigna antes de escribir, como en una bitácora física.</p>
+
+  <h3 style="margin-top:48px;">3 · Dashboard ejecutivo del contrato (HU-30)</h3>
+  <div class="hifi">
+    <div class="hifi-top">
+      <div class="hifi-band"><span>PANEL EJECUTIVO</span><span>Actualizado hace 4 min</span></div>
+      <div class="hifi-header">
+        <div>
+          <div class="id">Contrato CT-2026-014</div>
+          <div class="meta">Pavimentación Av. Reforma Norte · Dependencia: SOPOT Edo. de México</div>
+        </div>
+      </div>
+    </div>
+    <div class="hifi-body" style="display:block;padding:22px;">
+      <div class="dash-grid">
+        <div>
+          <div class="dash-card">
+            <h4>Avance físico vs. programado — Curva S</h4>
+            <div class="curve-s">
+              <svg viewBox="0 0 400 160" style="width:100%;height:100%;">
+                <polyline points="0,150 80,120 160,90 240,55 320,30 400,10" fill="none" stroke="#1F3864" stroke-width="2.5"/>
+                <polyline points="0,150 80,125 160,100 240,75 320,55 400,42" fill="none" stroke="#8C2F2F" stroke-width="2.5" stroke-dasharray="5,4"/>
+              </svg>
+            </div>
+            <div class="legend">
+              <span><i style="background:#1F3864"></i>Programado</span>
+              <span><i style="background:#8C2F2F"></i>Real (8% de atraso)</span>
+            </div>
+          </div>
+          <div class="dash-card">
+            <h4>Convenios modificatorios activos</h4>
+            <div class="contract-row"><span class="name">CM-008 — Ampliación de plazo</span><span class="pill observada">En evaluación</span></div>
+            <div class="contract-row"><span class="name">CM-006 — Incremento de monto</span><span class="pill aprobada">Aprobado</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="kpi" style="margin-bottom:14px;"><div class="v">$10.2M / $11M</div><div class="l">Monto ejercido / contratado</div></div>
+          <div class="dash-card">
+            <h4>Alertas críticas</h4>
+            <div class="alert-line"><span class="alert-dot r"></span>Estimación 014 — vence en 2 días</div>
+            <div class="alert-line"><span class="alert-dot y"></span>Garantía cumplimiento — 22 días</div>
+            <div class="alert-line"><span class="alert-dot y"></span>Nota 0140 — firma pendiente</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</div>
+
+<footer>FEPI — Sistema de Seguimiento en Ejecución de Obra Pública · Diseño de interfaz v1 · Junio 2026</footer>
+
+</body>
+</html>

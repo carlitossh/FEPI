@@ -5,7 +5,8 @@ import { TextInput } from "../../../components/TextInput";
 import { TextArea } from "../../../components/TextArea";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
-import { obra, folio, rule, ink } from "../../../styles/theme";
+import { obra, folio, rule } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 interface ModalNotaProps {
   tipo: string;
@@ -56,7 +57,7 @@ export function ModalNota({ tipo, onClose, siguienteFolio, onGuardar }: ModalNot
               style={{
                 fontSize: 11.5,
                 border: `1px solid ${form.tipoNota === t ? obra : rule}`,
-                color: form.tipoNota === t ? "#fff" : ink,
+                color: form.tipoNota === t ? "#fff" : C.fgMuted,
                 background: form.tipoNota === t ? obra : "transparent",
                 padding: "5px 10px",
                 borderRadius: 13,

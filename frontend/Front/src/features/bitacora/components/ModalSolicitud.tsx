@@ -5,7 +5,8 @@ import { TextInput } from "../../../components/TextInput";
 import { TextArea } from "../../../components/TextArea";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
-import { obra, obraSoft, rule, paper2 } from "../../../styles/theme";
+import { obra, obraSoft, rule } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 interface ModalSolicitudProps {
   onClose: () => void;
@@ -48,7 +49,7 @@ export function ModalSolicitud({ onClose, onGuardar }: ModalSolicitudProps) {
               borderRadius: 3,
               marginBottom: 6,
               cursor: "pointer",
-              background: form.tipoSolicitud === t ? obraSoft : paper2,
+              background: form.tipoSolicitud === t ? obraSoft : C.surface2,
             }}
           >
             <div

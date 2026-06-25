@@ -62,7 +62,7 @@ export const estimacionesService = {
 
   registrarPago: (
     id: number,
-    data: { fechaPago: string; referenciaBancaria: string; montoPagado: number }
+    data: { fechaPago: string; referenciaBancaria: string; montoPagado: number; usuarioRegistroId?: number }
   ) =>
     request<void>(`/estimaciones/${id}/pago`, {
       method: "POST",
@@ -72,6 +72,9 @@ export const estimacionesService = {
 
   obtenerHistorial: (id: number) =>
     request<any[]>(`/estimaciones/${id}/historial`),
+
+  obtenerPagos: (id: number) =>
+    request<any[]>(`/estimaciones/${id}/pagos`),
 
   getConceptosContrato: (contratoId: number) =>
     request<any[]>(`/contratos/${contratoId}/conceptos`),

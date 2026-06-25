@@ -1,5 +1,5 @@
 import React from "react";
-import { paper2, rule } from "../styles/theme";
+import { C } from "../styles/theme";
 
 interface CardProps {
   children: React.ReactNode;
@@ -10,9 +10,10 @@ export function Card({ children, style = {} }: CardProps) {
   return (
     <div
       style={{
-        background: paper2,
-        border: `1px solid ${rule}`,
-        borderRadius: 4,
+        background: C.surface,
+        border: `1px solid ${C.border}`,
+        borderRadius: 16,
+        overflow: "hidden",
         ...style,
       }}
     >

@@ -425,21 +425,32 @@ private static async Task SeedAvancesEstimacionesAsync(FepiDbContext context)
 
         context.AvancesDiarios.AddRange(avances);
 
+        var usuarios2 = await context.Usuarios.ToListAsync();
+        var residenteSeed = usuarios2.First(x => x.Correo == "residente@fepi.test");
+
+        // EST-1: Marzo — Aprobada por residencia, pago COMPLETO
+        var importeMarzo = 18m * conceptoLosa.PrecioUnitario;
         var estimacionMarzo = new Estimacion
         {
             ContratoId = contrato.Id,
             NumeroCorrelativo = 1,
             Periodo = "2026-03",
-            Estado = EstadoEstimacion.Pagada,
+            Estado = EstadoEstimacion.AprobadaResidencia,
+            EstadoPago = EstadoPagoEstimacion.Pagada,
+            MontoPagadoAcumulado = importeMarzo,
             FechaEnvio = new DateTime(2026, 3, 25, 10, 0, 0, DateTimeKind.Utc),
-            UsuarioEnvioId = superintendente.Id
+            UsuarioEnvioId = superintendente.Id,
+            FechaAprobacionSupervision = new DateTime(2026, 3, 27, 9, 0, 0, DateTimeKind.Utc),
+            UsuarioAprobacionSupervisionId = supervisor.Id,
+            FechaAprobacionResidencia = new DateTime(2026, 3, 28, 11, 0, 0, DateTimeKind.Utc),
+            UsuarioAprobacionResidenciaId = residenteSeed.Id
         };
 
         estimacionMarzo.Conceptos.Add(new EstimacionConcepto
         {
             ConceptoContratoId = conceptoLosa.Id,
             CantidadEjecutada = 18m,
-            Importe = 18m * conceptoLosa.PrecioUnitario
+            Importe = importeMarzo
         });
 
         estimacionMarzo.Historial.Add(new EstimacionHistorial
@@ -448,40 +459,58 @@ private static async Task SeedAvancesEstimacionesAsync(FepiDbContext context)
             EstadoNuevo = EstadoEstimacion.Enviada,
             Fecha = new DateTime(2026, 3, 25, 10, 0, 0, DateTimeKind.Utc),
             UsuarioId = superintendente.Id,
-            Comentario = "Estimación enviada para revisión."
+            Comentario = "Estimación enviada para revisión de supervisión."
         });
-
         estimacionMarzo.Historial.Add(new EstimacionHistorial
         {
-            EstadoAnterior = EstadoEstimacion.Aprobada,
-            EstadoNuevo = EstadoEstimacion.Pagada,
-            Fecha = new DateTime(2026, 3, 30, 14, 0, 0, DateTimeKind.Utc),
-            UsuarioId = financiera.Id,
-            Comentario = "Pago registrado por área financiera."
+            EstadoAnterior = EstadoEstimacion.Enviada,
+            EstadoNuevo = EstadoEstimacion.AprobadaSupervision,
+            Fecha = new DateTime(2026, 3, 27, 9, 0, 0, DateTimeKind.Utc),
+            UsuarioId = supervisor.Id,
+            Comentario = "Aprobada técnicamente por supervisión."
+        });
+        estimacionMarzo.Historial.Add(new EstimacionHistorial
+        {
+            EstadoAnterior = EstadoEstimacion.AprobadaSupervision,
+            EstadoNuevo = EstadoEstimacion.AprobadaResidencia,
+            Fecha = new DateTime(2026, 3, 28, 11, 0, 0, DateTimeKind.Utc),
+            UsuarioId = residenteSeed.Id,
+            Comentario = "Aprobada por residencia para pago."
         });
 
-        estimacionMarzo.Pago = new EstimacionPago
+        estimacionMarzo.Pagos.Add(new EstimacionPago
         {
             FechaPago = new DateOnly(2026, 3, 30),
             ReferenciaBancaria = $"CLC-{contrato.Id}-001",
-            MontoPagado = estimacionMarzo.Conceptos.Sum(c => c.Importe)
-        };
+            MontoPagado = importeMarzo,
+            UsuarioRegistroId = financiera.Id,
+            FechaRegistro = new DateTime(2026, 3, 30, 14, 0, 0, DateTimeKind.Utc)
+        });
 
+        // EST-2: Abril — Aprobada por residencia, pago PARCIAL
+        var importeAbril = 36m * conceptoLosa.PrecioUnitario;
+        var pagoParcialAbril = Math.Round(importeAbril * 0.6m, 2);
         var estimacionAbril = new Estimacion
         {
             ContratoId = contrato.Id,
             NumeroCorrelativo = 2,
             Periodo = "2026-04",
-            Estado = EstadoEstimacion.Aprobada,
+            Estado = EstadoEstimacion.AprobadaResidencia,
+            EstadoPago = EstadoPagoEstimacion.PagoParcial,
+            MontoPagadoAcumulado = pagoParcialAbril,
             FechaEnvio = new DateTime(2026, 4, 25, 10, 0, 0, DateTimeKind.Utc),
-            UsuarioEnvioId = superintendente.Id
+            UsuarioEnvioId = superintendente.Id,
+            FechaAprobacionSupervision = new DateTime(2026, 4, 27, 10, 0, 0, DateTimeKind.Utc),
+            UsuarioAprobacionSupervisionId = supervisor.Id,
+            FechaAprobacionResidencia = new DateTime(2026, 4, 28, 12, 0, 0, DateTimeKind.Utc),
+            UsuarioAprobacionResidenciaId = residenteSeed.Id
         };
 
         estimacionAbril.Conceptos.Add(new EstimacionConcepto
         {
             ConceptoContratoId = conceptoLosa.Id,
             CantidadEjecutada = 36m,
-            Importe = 36m * conceptoLosa.PrecioUnitario
+            Importe = importeAbril
         });
 
         estimacionAbril.Historial.Add(new EstimacionHistorial
@@ -492,16 +521,55 @@ private static async Task SeedAvancesEstimacionesAsync(FepiDbContext context)
             UsuarioId = superintendente.Id,
             Comentario = "Estimación enviada para revisión."
         });
-
         estimacionAbril.Historial.Add(new EstimacionHistorial
         {
             EstadoAnterior = EstadoEstimacion.Enviada,
-            EstadoNuevo = EstadoEstimacion.Aprobada,
-            Fecha = new DateTime(2026, 4, 28, 12, 0, 0, DateTimeKind.Utc),
+            EstadoNuevo = EstadoEstimacion.ObservadaSupervision,
+            Fecha = new DateTime(2026, 4, 26, 9, 0, 0, DateTimeKind.Utc),
             UsuarioId = supervisor.Id,
-            Comentario = "Estimación aprobada por supervisión."
+            Comentario = "Se observa: falta de anexo de generadores firmados."
+        });
+        estimacionAbril.Historial.Add(new EstimacionHistorial
+        {
+            EstadoAnterior = EstadoEstimacion.ObservadaSupervision,
+            EstadoNuevo = EstadoEstimacion.Enviada,
+            Fecha = new DateTime(2026, 4, 26, 16, 0, 0, DateTimeKind.Utc),
+            UsuarioId = superintendente.Id,
+            Comentario = "Corregida y re-enviada con generadores adjuntos."
+        });
+        estimacionAbril.Historial.Add(new EstimacionHistorial
+        {
+            EstadoAnterior = EstadoEstimacion.Enviada,
+            EstadoNuevo = EstadoEstimacion.AprobadaSupervision,
+            Fecha = new DateTime(2026, 4, 27, 10, 0, 0, DateTimeKind.Utc),
+            UsuarioId = supervisor.Id,
+            Comentario = "Aprobada por supervisión."
+        });
+        estimacionAbril.Historial.Add(new EstimacionHistorial
+        {
+            EstadoAnterior = EstadoEstimacion.AprobadaSupervision,
+            EstadoNuevo = EstadoEstimacion.AprobadaResidencia,
+            Fecha = new DateTime(2026, 4, 28, 12, 0, 0, DateTimeKind.Utc),
+            UsuarioId = residenteSeed.Id,
+            Comentario = "Aprobada por residencia."
         });
 
+        estimacionAbril.Observaciones.Add(new EstimacionObservacion
+        {
+            Texto = "Falta de anexo de generadores firmados para el concepto de losa.",
+            UsuarioId = supervisor.Id
+        });
+
+        estimacionAbril.Pagos.Add(new EstimacionPago
+        {
+            FechaPago = new DateOnly(2026, 5, 5),
+            ReferenciaBancaria = $"CLC-{contrato.Id}-002A",
+            MontoPagado = pagoParcialAbril,
+            UsuarioRegistroId = financiera.Id,
+            FechaRegistro = new DateTime(2026, 5, 5, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        // EST-3: Mayo — Enviada, pendiente revisión de supervisión
         var estimacionMayo = new Estimacion
         {
             ContratoId = contrato.Id,
@@ -534,6 +602,7 @@ private static async Task SeedAvancesEstimacionesAsync(FepiDbContext context)
             Comentario = "Estimación enviada con documentación parcial."
         });
 
+        // EST-4: Junio — Borrador
         var estimacionJunio = new Estimacion
         {
             ContratoId = contrato.Id,
@@ -633,7 +702,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             Residente = residente.Nombre,
             Supervisor = supervisor.Nombre,
             Superintendente = superintendente.Nombre,
-            FechaApertura = contrato.FechaInicio.ToDateTime(TimeOnly.MinValue)
+            FechaApertura = contrato.FechaInicio.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
         };
 
         context.CaratulasBitacora.Add(caratula);
@@ -646,7 +715,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             TipoNotaCatalogoId = tipoApertura.Id,
             Asunto = "Apertura formal de bitácora",
             Contenido = $"Se realiza la apertura formal de la bitácora electrónica correspondiente al contrato {contrato.NumeroContrato}.",
-            FechaRegistro = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 0))
+            FechaRegistro = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 0), DateTimeKind.Utc)
         };
 
         notaApertura.Firmas.Add(new BitacoraFirma
@@ -655,7 +724,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             RolFirmante = RolSistema.Residencia,
             EsEmisor = true,
             Firmado = true,
-            FechaFirma = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 10))
+            FechaFirma = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 10), DateTimeKind.Utc)
         });
 
         notaApertura.Firmas.Add(new BitacoraFirma
@@ -664,7 +733,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             RolFirmante = RolSistema.SupervisorExterno,
             EsEmisor = false,
             Firmado = true,
-            FechaFirma = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 15))
+            FechaFirma = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 15), DateTimeKind.Utc)
         });
 
         notaApertura.Firmas.Add(new BitacoraFirma
@@ -673,7 +742,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             RolFirmante = RolSistema.Superintendente,
             EsEmisor = false,
             Firmado = true,
-            FechaFirma = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 20))
+            FechaFirma = contrato.FechaInicio.ToDateTime(new TimeOnly(9, 20), DateTimeKind.Utc)
         });
 
         var notaAvance = new BitacoraNota
@@ -684,7 +753,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             TipoNotaCatalogoId = tipoAvance.Id,
             Asunto = "Registro de avance de cimentación",
             Contenido = "Se reporta avance en trabajos de cimentación y preparación de elementos estructurales.",
-            FechaRegistro = contrato.FechaInicio.AddMonths(1).ToDateTime(new TimeOnly(11, 0))
+            FechaRegistro = contrato.FechaInicio.AddMonths(1).ToDateTime(new TimeOnly(11, 0), DateTimeKind.Utc)
         };
 
         notaAvance.Firmas.Add(new BitacoraFirma
@@ -693,7 +762,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             RolFirmante = RolSistema.Superintendente,
             EsEmisor = true,
             Firmado = true,
-            FechaFirma = contrato.FechaInicio.AddMonths(1).ToDateTime(new TimeOnly(11, 5))
+            FechaFirma = contrato.FechaInicio.AddMonths(1).ToDateTime(new TimeOnly(11, 5), DateTimeKind.Utc)
         });
 
         notaAvance.Firmas.Add(new BitacoraFirma
@@ -712,7 +781,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             TipoNotaCatalogoId = tipoObservacion.Id,
             Asunto = "Observación sobre generadores",
             Contenido = "Se solicita revisar la consistencia entre los volúmenes ejecutados y los generadores presentados.",
-            FechaRegistro = contrato.FechaInicio.AddMonths(2).ToDateTime(new TimeOnly(12, 30))
+            FechaRegistro = contrato.FechaInicio.AddMonths(2).ToDateTime(new TimeOnly(12, 30), DateTimeKind.Utc)
         };
 
         notaObservacion.Firmas.Add(new BitacoraFirma
@@ -721,7 +790,7 @@ private static async Task SeedBitacoraConveniosAsync(FepiDbContext context)
             RolFirmante = RolSistema.SupervisorExterno,
             EsEmisor = true,
             Firmado = true,
-            FechaFirma = contrato.FechaInicio.AddMonths(2).ToDateTime(new TimeOnly(12, 35))
+            FechaFirma = contrato.FechaInicio.AddMonths(2).ToDateTime(new TimeOnly(12, 35), DateTimeKind.Utc)
         });
 
         notaObservacion.Firmas.Add(new BitacoraFirma
@@ -918,14 +987,14 @@ private static async Task SeedCierreAsync(FepiDbContext context)
         .Where(p =>
             p.Estimacion != null &&
             p.Estimacion.ContratoId == contratoCerrado.Id &&
-            p.Estimacion.Estado == EstadoEstimacion.Pagada)
+            p.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
         .SumAsync(p => p.MontoPagado);
 
     var totalPendiente = await context.EstimacionConceptos
         .Where(c =>
             c.Estimacion != null &&
             c.Estimacion.ContratoId == contratoCerrado.Id &&
-            c.Estimacion.Estado == EstadoEstimacion.Aprobada)
+            c.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
         .SumAsync(c => c.Importe);
 
     var existeFiniquito = await context.Finiquitos

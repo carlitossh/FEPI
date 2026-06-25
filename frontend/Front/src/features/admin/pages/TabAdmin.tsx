@@ -5,7 +5,8 @@ import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { TableHeader } from "../../../components/TableHeader";
 import { EstadoBadge } from "../../../components/EstadoBadge";
 import { adminService } from "../services/adminService";
-import { obra, paper2, rule, muted, observado, observadoSoft } from "../../../styles/theme";
+import { obra, rule, muted, observado, observadoSoft } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 import type { RolUsuario } from "../types";
 
 const CONTRATO_ID = 1;
@@ -136,8 +137,8 @@ export function TabAdmin() {
                   </td>
                 </tr>
               ) : (
-                usuarios.map((u, i) => (
-                  <tr key={u.id} style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}>
+                usuarios.map((u) => (
+                  <tr key={u.id} style={{ background: "transparent" }}>
                     <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div
@@ -180,13 +181,15 @@ export function TabAdmin() {
                         value={u.rol}
                         onChange={(e) => handleRolChange(u, e.target.value)}
                         style={{
-                          border: `1px solid ${rule}`,
-                          background: paper2,
-                          borderRadius: 3,
+                          border: `1px solid ${C.border}`,
+                          background: C.surface2,
+                          borderRadius: 8,
                           padding: "5px 8px",
                           fontSize: 12,
                           fontFamily: "'IBM Plex Sans', sans-serif",
                           outline: "none",
+                          color: C.fg,
+                          colorScheme: "dark",
                         }}
                       >
                         {roles.map((r) => (

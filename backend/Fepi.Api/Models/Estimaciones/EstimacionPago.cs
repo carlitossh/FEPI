@@ -8,4 +8,7 @@ public class EstimacionPago
     public DateOnly FechaPago { get; set; }
     public string ReferenciaBancaria { get; set; } = null!;
     public decimal MontoPagado { get; set; }
+    public int? UsuarioRegistroId { get; set; }
+    public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
+    public Usuario? UsuarioRegistro { get; set; }
 }

@@ -11,29 +11,44 @@ import { TabConvenios } from "../features/convenios/pages/TabConvenios";
 import { TabExpediente } from "../features/expediente/pages/TabExpediente";
 import { TabFiniquito } from "../features/finiquito/pages/TabFiniquito";
 import { TabAdmin } from "../features/admin/pages/TabAdmin";
-import { getContrato } from "../features/dashboard/services/dashboardService";
-import { paper, paper2, rule, folio, obra, obraSoft, muted } from "../styles/theme";
+import { getContratos } from "../features/dashboard/services/dashboardService";
+import { C } from "../styles/theme";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [alertOpen, setAlertOpen] = useState(false);
   const [rol, setRol] = useState("Superintendente");
   const [showRolPicker, setShowRolPicker] = useState(false);
-  const [contratoNumero, setContratoNumero] = useState("CT-001");
+  const [contratoNumero, setContratoNumero] = useState("—");
+  const [contratoExists, setContratoExists] = useState<boolean | null>(null);
+
+  const refreshContratos = () => {
+    getContratos()
+      .then((list) => {
+        if (list.length > 0) {
+          setContratoNumero(list[0].numeroContrato);
+          setContratoExists(true);
+        } else {
+          setContratoNumero("—");
+          setContratoExists(false);
+        }
+      })
+      .catch(() => setContratoExists(null));
+  };
 
   useEffect(() => {
-    getContrato(1).then((c) => setContratoNumero(c.numeroContrato)).catch(() => {});
+    refreshContratos();
   }, []);
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: paper,
+        background: C.bg,
         fontFamily: "'IBM Plex Sans', sans-serif",
+        color: C.fg,
       }}
     >
-      {/* Top bar */}
       <TopBar
         rol={rol}
         setRol={setRol}
@@ -43,11 +58,11 @@ export default function App() {
         setAlertOpen={setAlertOpen}
       />
 
-      {/* Tab bar */}
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Main content */}
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 28px 60px" }}>
+        {/* Breadcrumb */}
         <div
           style={{
             display: "flex",
@@ -56,30 +71,22 @@ export default function App() {
             marginBottom: 20,
           }}
         >
-          <div
-            style={{
-              fontSize: 10.5,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: folio,
-              fontWeight: 700,
-            }}
-          >
-            {TABS.find((t) => t.id === activeTab)?.label}
-          </div>
-          <ChevronRight size={12} color={rule} />
-          <div style={{ fontFamily: "JetBrains Mono", fontSize: 11, color: muted }}>
+          <div style={{ fontFamily: "JetBrains Mono", fontSize: 11, color: C.blue }}>
             {contratoNumero}
+          </div>
+          <ChevronRight size={11} color={C.fgSub} />
+          <div style={{ fontSize: 12, color: C.fg, fontWeight: 500 }}>
+            {TABS.find((t) => t.id === activeTab)?.label}
           </div>
           <div
             style={{
               marginLeft: "auto",
               fontSize: 11,
-              color: muted,
-              background: obraSoft,
-              border: `1px solid ${obra}`,
-              borderRadius: 10,
-              padding: "2px 10px",
+              color: C.blue,
+              background: C.blueSoft,
+              border: `1px solid ${C.blue}44`,
+              borderRadius: 999,
+              padding: "3px 12px",
               fontWeight: 600,
             }}
           >
@@ -87,14 +94,62 @@ export default function App() {
           </div>
         </div>
 
-        {activeTab === "dashboard" && <TabDashboard rol={rol} />}
+        {/* Primera vez banner */}
+        {contratoExists === false && activeTab !== "expediente" && (
+          <div
+            style={{
+              background: C.amberSoft,
+              border: `1px solid ${C.amber}44`,
+              borderRadius: 12,
+              padding: "12px 16px",
+              marginBottom: 20,
+              fontSize: 12.5,
+              color: C.amber,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>
+              <strong>Primera vez en el sistema.</strong> Para comenzar, registra el contrato de obra.
+            </span>
+            <button
+              onClick={() => setActiveTab("expediente")}
+              style={{
+                background: C.amber,
+                color: "#000",
+                border: "none",
+                borderRadius: 8,
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                whiteSpace: "nowrap",
+                marginLeft: 16,
+              }}
+            >
+              Ir a Expediente →
+            </button>
+          </div>
+        )}
+
+        {activeTab === "dashboard"    && <TabDashboard rol={rol} />}
         {activeTab === "estimaciones" && <TabEstimaciones rol={rol} />}
-        {activeTab === "avance" && <TabAvance rol={rol} />}
-        {activeTab === "bitacora" && <TabBitacora rol={rol} />}
-        {activeTab === "convenios" && <TabConvenios rol={rol} />}
-        {activeTab === "expediente" && <TabExpediente rol={rol} />}
+        {activeTab === "avance"       && <TabAvance rol={rol} />}
+        {activeTab === "bitacora"     && <TabBitacora rol={rol} />}
+        {activeTab === "convenios"    && <TabConvenios rol={rol} />}
+        {activeTab === "expediente"   && (
+          <TabExpediente
+            rol={rol}
+            onContratoSaved={() => {
+              refreshContratos();
+              setTimeout(() => setActiveTab("dashboard"), 1500);
+            }}
+          />
+        )}
         {activeTab === "finiquito" && <TabFiniquito rol={rol} />}
-        {activeTab === "admin" && <TabAdmin />}
+        {activeTab === "admin"     && <TabAdmin />}
       </div>
 
       {/* Alert flyout */}
@@ -106,10 +161,10 @@ export default function App() {
             right: 0,
             bottom: 0,
             width: 300,
-            background: paper2,
-            borderLeft: `1px solid ${rule}`,
+            background: C.surface,
+            borderLeft: `1px solid ${C.border}`,
             zIndex: 60,
-            boxShadow: "-8px 0 30px rgba(26,34,56,0.1)",
+            boxShadow: "-8px 0 30px rgba(0,0,0,0.4)",
             padding: 20,
             overflowY: "auto",
           }}
@@ -124,11 +179,9 @@ export default function App() {
           >
             <div
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                color: "#1A2238",
+                color: C.fg,
               }}
             >
               Alertas activas
@@ -136,13 +189,16 @@ export default function App() {
             <button
               onClick={() => setAlertOpen(false)}
               style={{
-                background: "none",
-                border: "none",
+                background: C.surface2,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
                 cursor: "pointer",
-                color: muted,
+                color: C.fgMuted,
+                padding: 6,
+                display: "flex",
               }}
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
           <AlertsPanel rol={rol} contratoId={1} />
@@ -152,11 +208,11 @@ export default function App() {
       {/* Footer */}
       <div
         style={{
-          borderTop: `1px solid ${rule}`,
+          borderTop: `1px solid ${C.border}`,
           padding: "20px 28px",
           textAlign: "center",
           fontSize: 11.5,
-          color: muted,
+          color: C.fgSub,
           fontFamily: "JetBrains Mono",
         }}
       >

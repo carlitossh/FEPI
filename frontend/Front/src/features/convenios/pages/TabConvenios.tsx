@@ -12,9 +12,10 @@ import { ModalResolucion } from "../components/ModalResolucion";
 import { conveniosService } from "../services/conveniosService";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
-  ink, paper2, rule, obra, obraSoft, aprobado, aprobadoSoft,
+  rule, obra, obraSoft, aprobado, aprobadoSoft,
   observado, muted,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 import type { Convenio, EstadoConv } from "../types";
 
 const CONTRATO_ID = 1;
@@ -170,14 +171,12 @@ export function TabConvenios({ rol }: TabConveniosProps) {
                   </td>
                 </tr>
               ) : (
-                convenios.map((c, i) => (
+                convenios.map((c) => (
                   <tr
                     key={c.rawId}
-                    style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
-                    onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
-                    onMouseLeave={(el) =>
-                      (el.currentTarget.style.background = i % 2 === 1 ? "#FAF8F2" : paper2)
-                    }
+                    style={{ background: "transparent" }}
+                    onMouseEnter={(el) => (el.currentTarget.style.background = C.surface2)}
+                    onMouseLeave={(el) => (el.currentTarget.style.background = "transparent")}
                   >
                     <td
                       style={{
@@ -215,9 +214,9 @@ export function TabConvenios({ rol }: TabConveniosProps) {
                         style={{
                           fontSize: 11.5,
                           color: obra,
-                          background: "none",
-                          border: `1px solid ${rule}`,
-                          borderRadius: 3,
+                          background: C.blueSoft,
+                          border: "none",
+                          borderRadius: 8,
                           padding: "4px 10px",
                           cursor: "pointer",
                           fontFamily: "'IBM Plex Sans', sans-serif",
@@ -268,8 +267,8 @@ export function TabConvenios({ rol }: TabConveniosProps) {
                     key={s.n}
                     style={{
                       border: `1.5px solid ${done ? aprobado : active ? obra : rule}`,
-                      background: done ? aprobadoSoft : active ? obraSoft : paper2,
-                      borderRadius: 4,
+                      background: done ? aprobadoSoft : active ? obraSoft : C.surface2,
+                      borderRadius: 12,
                       padding: "14px 16px",
                       color: done ? aprobado : active ? obra : muted,
                     }}
@@ -321,12 +320,13 @@ export function TabConvenios({ rol }: TabConveniosProps) {
               <SectionLabel>Justificación</SectionLabel>
               <div
                 style={{
-                  background: "#FAF8F2",
-                  border: `1px solid ${rule}`,
-                  borderRadius: 3,
+                  background: C.surface2,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 12.5,
                   lineHeight: 1.6,
+                  color: C.fg,
                 }}
               >
                 {detalle.justificacion}

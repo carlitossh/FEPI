@@ -1,6 +1,6 @@
 import React from "react";
 import { X } from "lucide-react";
-import { paper2, obra } from "../styles/theme";
+import { C } from "../styles/theme";
 
 interface ModalProps {
   title: string;
@@ -16,21 +16,23 @@ export function Modal({ title, subtitle, onClose, children, width = 480 }: Modal
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(26,34,56,0.45)",
+        background: "rgba(0,0,0,0.65)",
         zIndex: 100,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
+        backdropFilter: "blur(4px)",
       }}
     >
       <div
         style={{
-          background: paper2,
-          borderRadius: 5,
+          background: C.surface,
+          border: `1px solid ${C.borderHi}`,
+          borderRadius: 18,
           width,
           maxWidth: "100%",
-          boxShadow: "0 20px 60px rgba(26,34,56,0.25)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
           overflow: "hidden",
           maxHeight: "90vh",
           display: "flex",
@@ -39,13 +41,13 @@ export function Modal({ title, subtitle, onClose, children, width = 480 }: Modal
       >
         <div
           style={{
-            background: obra,
-            color: "#fff",
+            background: C.surface2,
             padding: "14px 20px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             flexShrink: 0,
+            borderBottom: `1px solid ${C.border}`,
           }}
         >
           <div>
@@ -54,7 +56,7 @@ export function Modal({ title, subtitle, onClose, children, width = 480 }: Modal
                 style={{
                   fontFamily: "JetBrains Mono",
                   fontSize: 10.5,
-                  opacity: 0.7,
+                  color: C.fgMuted,
                   marginBottom: 2,
                 }}
               >
@@ -63,9 +65,9 @@ export function Modal({ title, subtitle, onClose, children, width = 480 }: Modal
             )}
             <div
               style={{
-                fontFamily: "'IBM Plex Serif', serif",
                 fontWeight: 700,
                 fontSize: 16,
+                color: C.fg,
               }}
             >
               {title}
@@ -74,14 +76,16 @@ export function Modal({ title, subtitle, onClose, children, width = 480 }: Modal
           <button
             onClick={onClose}
             style={{
-              background: "none",
-              border: "none",
-              color: "#fff",
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              color: C.fgMuted,
               cursor: "pointer",
-              padding: 4,
+              padding: 6,
+              display: "flex",
             }}
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
         <div style={{ padding: 20, overflowY: "auto" }}>{children}</div>

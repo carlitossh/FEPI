@@ -21,7 +21,10 @@ public class EntregaRecepcionController : ControllerBase
 
     [HttpGet("contrato/{contratoId:int}")]
     public async Task<ActionResult<EntregaRecepcionDto>> Obtener(int contratoId, CancellationToken ct)
-        => Ok(await _service.ObtenerAsync(contratoId, ct));
+    {
+        var result = await _service.ObtenerAsync(contratoId, ct);
+        return result is null ? NotFound() : Ok(result);
+    }
 
     [HttpPost("contrato/{contratoId:int}/finiquito")]
     public async Task<ActionResult<FiniquitoDto>> EmitirFiniquito(int contratoId, [FromBody] EmitirFiniquitoDto dto, CancellationToken ct)
@@ -29,5 +32,8 @@ public class EntregaRecepcionController : ControllerBase
 
     [HttpGet("contrato/{contratoId:int}/finiquito")]
     public async Task<ActionResult<FiniquitoDto>> ObtenerFiniquito(int contratoId, CancellationToken ct)
-        => Ok(await _service.ObtenerFiniquitoAsync(contratoId, ct));
+    {
+        var result = await _service.ObtenerFiniquitoAsync(contratoId, ct);
+        return result is null ? NotFound() : Ok(result);
+    }
 }

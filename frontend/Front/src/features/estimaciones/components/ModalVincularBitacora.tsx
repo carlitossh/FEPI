@@ -4,7 +4,8 @@ import { Modal } from "../../../components/Modal";
 import { TextInput } from "../../../components/TextInput";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
-import { obra, obraSoft, rule, paper2, muted } from "../../../styles/theme";
+import { obra, obraSoft, rule, muted } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 import type { NotaBitacora } from "../../bitacora/types";
 
 interface ModalVincularBitacoraProps {
@@ -48,12 +49,14 @@ export function ModalVincularBitacora({
           onChange={(e) => setFiltroTipo(e.target.value)}
           style={{
             border: `1px solid ${rule}`,
-            background: paper2,
-            borderRadius: 3,
+            background: C.surface2,
+            borderRadius: 8,
             padding: "8px 10px",
             fontSize: 12,
             fontFamily: "'IBM Plex Sans', sans-serif",
             outline: "none",
+            color: C.fg,
+            colorScheme: "dark",
           }}
         >
           {["Todos", "Nota", "Apertura", "Incidencia"].map((o) => (
@@ -81,7 +84,7 @@ export function ModalVincularBitacora({
                 borderRadius: 3,
                 marginBottom: 6,
                 cursor: "pointer",
-                background: isChecked ? obraSoft : paper2,
+                background: isChecked ? obraSoft : C.surface2,
               }}
             >
               <div

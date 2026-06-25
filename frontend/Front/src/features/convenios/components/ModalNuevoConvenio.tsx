@@ -8,9 +8,10 @@ import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
 import { mockContrato } from "../../dashboard/mock/mockContrato";
 import {
-  obra, obraSoft, rule, paper2, aprobado, aprobadoSoft,
+  obra, obraSoft, rule, aprobado, aprobadoSoft,
   folio, folioSoft, observado, observadoSoft, muted,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 interface ModalNuevoConvenioProps {
   onClose: () => void;
@@ -61,7 +62,7 @@ export function ModalNuevoConvenio({ onClose, onCrear }: ModalNuevoConvenioProps
               borderRadius: 3,
               marginBottom: 6,
               cursor: "pointer",
-              background: form.tipo === t ? obraSoft : paper2,
+              background: form.tipo === t ? obraSoft : C.surface2,
             }}
           >
             <div
@@ -136,7 +137,7 @@ export function ModalNuevoConvenio({ onClose, onCrear }: ModalNuevoConvenioProps
             padding: 16,
             textAlign: "center",
             cursor: "pointer",
-            background: form.doc ? aprobadoSoft : "#FAF8F2",
+            background: form.doc ? aprobadoSoft : C.surface2,
           }}
           onClick={() => {
             const input = document.createElement("input");

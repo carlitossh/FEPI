@@ -7,6 +7,7 @@ import { TextArea } from "../../../components/TextArea";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
 import { aprobado, aprobadoSoft, rule, muted } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 interface ModalIncidenciaProps {
   onClose: () => void;
@@ -45,7 +46,7 @@ export function ModalIncidencia({ onClose, onGuardar }: ModalIncidenciaProps) {
             padding: 20,
             textAlign: "center",
             cursor: "pointer",
-            background: form.foto ? aprobadoSoft : "#FAF8F2",
+            background: form.foto ? aprobadoSoft : C.surface2,
           }}
           onClick={() => {
             const input = document.createElement("input");

@@ -9,9 +9,9 @@ import {
   obra,
   obraSoft,
   rule,
-  paper2,
   muted,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 import { estimacionesService } from "../services/estimacionesService";
 
 interface ModalAddConceptoProps {
@@ -66,7 +66,7 @@ export function ModalAddConcepto({
               marginBottom: 6,
               cursor: "pointer",
               background:
-                selected?.id === c.id ? obraSoft : paper2,
+                selected?.id === c.id ? obraSoft : C.surface2,
             }}
           >
             <div

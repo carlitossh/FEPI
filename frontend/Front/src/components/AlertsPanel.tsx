@@ -1,6 +1,6 @@
 import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
-import { folio, observado, ink, muted } from "../styles/theme";
+import { C } from "../styles/theme";
 import { Card } from "./Card";
 
 const API = "http://localhost:5000/api";
@@ -36,42 +36,40 @@ export function AlertsPanel({ rol = "Superintendente", contratoId = 1 }: AlertsP
     <Card style={{ padding: "18px 16px", height: "fit-content" }}>
       <div
         style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.07em",
-          color: muted,
+          fontSize: 13,
+          fontWeight: 600,
+          color: C.fg,
           marginBottom: 14,
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: 8,
         }}
       >
-        <Bell size={12} /> Alertas activas
+        <Bell size={14} color={C.fgMuted} />
+        Alertas activas
       </div>
       {alertas.length === 0 && (
-        <div style={{ fontSize: 12, color: muted, textAlign: "center", padding: "12px 0" }}>
+        <div style={{ fontSize: 12, color: C.fgMuted, textAlign: "center", padding: "12px 0" }}>
           Sin alertas activas.
         </div>
       )}
       {alertas.map((a, i) => {
         const nivel = tipoANivel(a.tipo);
         const color =
-          nivel === "rojo" ? folio : nivel === "amarillo" ? observado : "#999";
+          nivel === "rojo" ? C.red : nivel === "amarillo" ? C.amber : C.fgMuted;
         const bg =
-          nivel === "rojo" ? "#F3E4E0" : nivel === "amarillo" ? "#F6EAD0" : "#F5F5F5";
+          nivel === "rojo" ? C.redSoft : nivel === "amarillo" ? C.amberSoft : "rgba(136,136,136,0.1)";
         return (
           <div
             key={i}
             style={{
               display: "flex",
               alignItems: "flex-start",
-              gap: 8,
-              padding: "9px 10px",
+              gap: 10,
+              padding: "10px 12px",
               background: bg,
-              borderRadius: 3,
+              borderRadius: 10,
               marginBottom: 8,
-              borderLeft: `3px solid ${color}`,
             }}
           >
             <div
@@ -84,8 +82,10 @@ export function AlertsPanel({ rol = "Superintendente", contratoId = 1 }: AlertsP
                 marginTop: 4,
               }}
             />
-            <div style={{ fontSize: 11.5, color: ink, lineHeight: 1.4 }}>
-              {a.mensaje}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: C.fg, lineHeight: 1.45 }}>
+                {a.mensaje}
+              </div>
             </div>
           </div>
         );

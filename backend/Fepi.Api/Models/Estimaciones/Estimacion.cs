@@ -9,16 +9,26 @@ public class Estimacion
     public int NumeroCorrelativo { get; set; }
     public string Periodo { get; set; } = null!;
     public EstadoEstimacion Estado { get; set; } = EstadoEstimacion.Borrador;
+    public EstadoPagoEstimacion EstadoPago { get; set; } = EstadoPagoEstimacion.SinPago;
+    public decimal MontoPagadoAcumulado { get; set; } = 0;
 
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public DateTime? FechaEnvio { get; set; }
     public int? UsuarioEnvioId { get; set; }
     public Usuario? UsuarioEnvio { get; set; }
 
+    public DateTime? FechaAprobacionSupervision { get; set; }
+    public int? UsuarioAprobacionSupervisionId { get; set; }
+    public Usuario? UsuarioAprobacionSupervision { get; set; }
+
+    public DateTime? FechaAprobacionResidencia { get; set; }
+    public int? UsuarioAprobacionResidenciaId { get; set; }
+    public Usuario? UsuarioAprobacionResidencia { get; set; }
+
     public ICollection<EstimacionConcepto> Conceptos { get; set; } = new List<EstimacionConcepto>();
     public ICollection<EstimacionDocumento> Documentos { get; set; } = new List<EstimacionDocumento>();
     public ICollection<EstimacionNotaBitacora> NotasVinculadas { get; set; } = new List<EstimacionNotaBitacora>();
     public ICollection<EstimacionObservacion> Observaciones { get; set; } = new List<EstimacionObservacion>();
     public ICollection<EstimacionHistorial> Historial { get; set; } = new List<EstimacionHistorial>();
-    public EstimacionPago? Pago { get; set; }
+    public ICollection<EstimacionPago> Pagos { get; set; } = new List<EstimacionPago>();
 }

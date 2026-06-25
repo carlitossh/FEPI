@@ -53,13 +53,14 @@ public class EntregaRecepcionService : IEntregaRecepcionService
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task<EntregaRecepcionDto> ObtenerAsync(
+    public async Task<EntregaRecepcionDto?> ObtenerAsync(
         int contratoId,
         CancellationToken ct = default)
     {
         var entrega = await _context.EntregasRecepcion
-            .FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct)
-            ?? throw new InvalidOperationException("No existe entrega-recepción registrada para este contrato.");
+            .FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct);
+
+        if (entrega is null) return null;
 
         return new EntregaRecepcionDto(
             entrega.Id,
@@ -87,14 +88,14 @@ public class EntregaRecepcionService : IEntregaRecepcionService
             .Where(p =>
                 p.Estimacion != null &&
                 p.Estimacion.ContratoId == contratoId &&
-                p.Estimacion.Estado == EstadoEstimacion.Pagada)
+                p.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
             .SumAsync(p => p.MontoPagado, ct);
 
         var totalPendiente = await _context.EstimacionConceptos
             .Where(c =>
                 c.Estimacion != null &&
                 c.Estimacion.ContratoId == contratoId &&
-                c.Estimacion.Estado == EstadoEstimacion.Aprobada)
+                c.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
             .SumAsync(c => c.Importe, ct);
 
         var finiquito = await _context.Finiquitos
@@ -125,13 +126,14 @@ public class EntregaRecepcionService : IEntregaRecepcionService
         return MapFiniquitoDto(finiquito);
     }
 
-    public async Task<FiniquitoDto> ObtenerFiniquitoAsync(
+    public async Task<FiniquitoDto?> ObtenerFiniquitoAsync(
         int contratoId,
         CancellationToken ct = default)
     {
         var finiquito = await _context.Finiquitos
-            .FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct)
-            ?? throw new InvalidOperationException("No existe finiquito registrado para este contrato.");
+            .FirstOrDefaultAsync(x => x.ContratoId == contratoId, ct);
+
+        if (finiquito is null) return null;
 
         return MapFiniquitoDto(finiquito);
     }

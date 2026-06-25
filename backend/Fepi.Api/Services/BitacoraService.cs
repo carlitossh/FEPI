@@ -72,7 +72,7 @@ public class BitacoraService : IBitacoraService
             Residente = dto.ResidenteNombre,
             Supervisor = dto.SupervisorDesignadoNombre,
             Superintendente = dto.SuperintendenteNombre,
-            FechaApertura = dto.FechaAperturaFormal.ToDateTime(TimeOnly.MinValue)
+            FechaApertura = dto.FechaAperturaFormal.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc)
         };
 
         _context.CaratulasBitacora.Add(caratula);
@@ -280,7 +280,7 @@ return MapNotaDto(notaCreada);
             n.FechaRegistro,
             n.Asunto,
             n.Contenido,
-            $"{n.Firmas.Count(f => f.Firmado)}/3",
+            $"{n.Firmas.Count(f => f.Firmado && (f.RolFirmante == RolSistema.Residencia || f.RolFirmante == RolSistema.Superintendente || f.RolFirmante == RolSistema.SupervisorExterno))}/3",
             n.FolioVinculadoId != null ? n.FolioVinculadoId.ToString() : null
         ))
         .ToListAsync(ct);

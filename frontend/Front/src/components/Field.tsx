@@ -1,4 +1,4 @@
-import { ink } from "../styles/theme";
+import { C } from "../styles/theme";
 import { SectionLabel } from "./SectionLabel";
 
 interface FieldProps {
@@ -13,7 +13,7 @@ export function Field({ label, value }: FieldProps) {
       <div
         style={{
           fontSize: 13,
-          color: ink,
+          color: C.fg,
           fontFamily: "JetBrains Mono",
           fontWeight: 500,
         }}

@@ -28,4 +28,6 @@ public interface IContratoService
         int contratoId,
         decimal nuevoMonto,
         CancellationToken ct = default);
+
+    Task ActualizarAsync(int contratoId, ActualizarContratoDto dto, CancellationToken ct = default);
 }

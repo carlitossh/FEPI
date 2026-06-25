@@ -519,6 +519,9 @@ namespace Fepi.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("NombreObra")
+                        .HasColumnType("text");
+
                     b.Property<string>("NumeroContrato")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -526,6 +529,15 @@ namespace Fepi.Api.Migrations
 
                     b.Property<int>("PeriodoEstimacion")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ResidenteNombre")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SuperintendenteNombre")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupervisorExternoNombre")
+                        .HasColumnType("text");
 
                     b.Property<int>("Tipo")
                         .HasColumnType("integer");
@@ -811,11 +823,24 @@ namespace Fepi.Api.Migrations
                     b.Property<int>("Estado")
                         .HasColumnType("integer");
 
+                    b.Property<int>("EstadoPago")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FechaAprobacionResidencia")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("FechaAprobacionSupervision")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("FechaEnvio")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("MontoPagadoAcumulado")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<int>("NumeroCorrelativo")
                         .HasColumnType("integer");
@@ -825,10 +850,20 @@ namespace Fepi.Api.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<int?>("UsuarioAprobacionResidenciaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("UsuarioAprobacionSupervisionId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("UsuarioEnvioId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UsuarioAprobacionResidenciaId");
+
+                    b.HasIndex("UsuarioAprobacionSupervisionId");
 
                     b.HasIndex("UsuarioEnvioId");
 
@@ -1006,6 +1041,9 @@ namespace Fepi.Api.Migrations
                     b.Property<DateOnly>("FechaPago")
                         .HasColumnType("date");
 
+                    b.Property<DateTime>("FechaRegistro")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("MontoPagado")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -1015,10 +1053,14 @@ namespace Fepi.Api.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<int?>("UsuarioRegistroId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("EstimacionId")
-                        .IsUnique();
+                    b.HasIndex("EstimacionId");
+
+                    b.HasIndex("UsuarioRegistroId");
 
                     b.ToTable("EstimacionPagos");
                 });
@@ -1492,12 +1534,26 @@ namespace Fepi.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Fepi.Api.Models.Usuario", "UsuarioAprobacionResidencia")
+                        .WithMany()
+                        .HasForeignKey("UsuarioAprobacionResidenciaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "UsuarioAprobacionSupervision")
+                        .WithMany()
+                        .HasForeignKey("UsuarioAprobacionSupervisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Fepi.Api.Models.Usuario", "UsuarioEnvio")
                         .WithMany()
                         .HasForeignKey("UsuarioEnvioId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Contrato");
+
+                    b.Navigation("UsuarioAprobacionResidencia");
+
+                    b.Navigation("UsuarioAprobacionSupervision");
 
                     b.Navigation("UsuarioEnvio");
                 });
@@ -1592,12 +1648,19 @@ namespace Fepi.Api.Migrations
             modelBuilder.Entity("Fepi.Api.Models.EstimacionPago", b =>
                 {
                     b.HasOne("Fepi.Api.Models.Estimacion", "Estimacion")
-                        .WithOne("Pago")
-                        .HasForeignKey("Fepi.Api.Models.EstimacionPago", "EstimacionId")
+                        .WithMany("Pagos")
+                        .HasForeignKey("EstimacionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Fepi.Api.Models.Usuario", "UsuarioRegistro")
+                        .WithMany()
+                        .HasForeignKey("UsuarioRegistroId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Estimacion");
+
+                    b.Navigation("UsuarioRegistro");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.Finiquito", b =>
@@ -1724,7 +1787,7 @@ namespace Fepi.Api.Migrations
 
                     b.Navigation("Observaciones");
 
-                    b.Navigation("Pago");
+                    b.Navigation("Pagos");
                 });
 #pragma warning restore 612, 618
         }

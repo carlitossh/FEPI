@@ -4,7 +4,8 @@ import { SectionLabel } from "../../../components/SectionLabel";
 import { TextArea } from "../../../components/TextArea";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
-import { aprobado, aprobadoSoft, folio, folioSoft, rule, paper2, ink } from "../../../styles/theme";
+import { aprobado, aprobadoSoft, folio, folioSoft, rule } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 interface ModalResolucionProps {
   onClose: () => void;
@@ -47,13 +48,13 @@ export function ModalResolucion({ onClose, onGuardar }: ModalResolucionProps) {
                     ? r === "Aprobado"
                       ? aprobadoSoft
                       : folioSoft
-                    : paper2,
+                    : C.surface2,
                 color:
                   form.resolucion === r
                     ? r === "Aprobado"
                       ? aprobado
                       : folio
-                    : ink,
+                    : C.fg,
                 fontWeight: form.resolucion === r ? 700 : 400,
                 fontSize: 13,
               }}

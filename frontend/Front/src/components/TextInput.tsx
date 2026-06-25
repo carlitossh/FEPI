@@ -1,5 +1,5 @@
 import React from "react";
-import { rule, ink } from "../styles/theme";
+import { C } from "../styles/theme";
 
 interface TextInputProps {
   placeholder?: string;
@@ -15,16 +15,17 @@ export function TextInput({ placeholder, value, onChange, style = {} }: TextInpu
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       style={{
-        border: `1px solid ${rule}`,
-        background: "#FAF8F2",
-        borderRadius: 3,
-        padding: "8px 12px",
+        border: `1px solid ${C.border}`,
+        background: C.surface2,
+        borderRadius: 10,
+        padding: "9px 12px",
         fontSize: 12.5,
-        color: ink,
+        color: C.fg,
         fontFamily: "'IBM Plex Sans', sans-serif",
         outline: "none",
         width: "100%",
         boxSizing: "border-box",
+        colorScheme: "dark",
         ...style,
       }}
     />

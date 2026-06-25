@@ -1,5 +1,5 @@
 import React from "react";
-import { ink, rule } from "../styles/theme";
+import { C } from "../styles/theme";
 
 interface SecondaryBtnProps {
   children: React.ReactNode;
@@ -13,15 +13,18 @@ export function SecondaryBtn({ children, onClick, style = {}, color }: Secondary
     <button
       onClick={onClick}
       style={{
-        background: "transparent",
-        color: color || ink,
-        border: `1px solid ${rule}`,
-        borderRadius: 3,
+        background: C.surface2,
+        color: color || C.fg,
+        border: `1px solid ${C.border}`,
+        borderRadius: 10,
         padding: "7px 14px",
         fontSize: 12,
         fontWeight: 500,
         cursor: "pointer",
         fontFamily: "'IBM Plex Sans', sans-serif",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
         ...style,
       }}
     >

@@ -27,8 +27,8 @@ import {
   observado,
   aprobado,
   aprobadoSoft,
-  paper2,
 } from "../../../styles/theme";
+import { C } from "../../../styles/theme";
 
 interface TabAvanceProps {
   rol: string;
@@ -126,10 +126,11 @@ export function TabAvance({ rol }: TabAvanceProps) {
               />
               <Tooltip
                 contentStyle={{
-                  background: paper2,
-                  border: `1px solid ${rule}`,
-                  borderRadius: 3,
+                  background: C.surface2,
+                  border: `1px solid ${C.borderHi}`,
+                  borderRadius: 10,
                   fontSize: 12,
+                  color: C.fg,
                 }}
                 formatter={(value) =>
                   value !== null ? [`${value}%`] : ["—"]
@@ -240,10 +241,12 @@ export function TabAvance({ rol }: TabAvanceProps) {
               style={{
                 width: "100%",
                 padding: "10px",
-                border: `1px solid ${rule}`,
-                borderRadius: 4,
-                background: "#FAF8F2",
-              fontSize: 13,
+                border: `1px solid ${C.border}`,
+                borderRadius: 10,
+                background: C.surface2,
+                fontSize: 13,
+                color: C.fg,
+                colorScheme: "dark",
               }}
             >
             {conceptos.map((c) => (
@@ -275,7 +278,7 @@ export function TabAvance({ rol }: TabAvanceProps) {
                 padding: "20px",
                 textAlign: "center",
                 cursor: "pointer",
-                background: avance.foto ? aprobadoSoft : "#FAF8F2",
+                background: avance.foto ? aprobadoSoft : C.surface2,
               }}
               onClick={() => {
                 const input = document.createElement("input");

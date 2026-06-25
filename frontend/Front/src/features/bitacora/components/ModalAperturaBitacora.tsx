@@ -16,7 +16,7 @@ export function ModalAperturaBitacora({ onClose, onAbrir }: ModalAperturaBitacor
 
   const campos = [
     { key: "lugar" as const, label: "Lugar de obra", placeholder: "Ej: Av. Reforma Norte, Km 4+200" },
-    { key: "fecha" as const, label: "Fecha de apertura", placeholder: "DD-MM-YYYY" },
+    { key: "fecha" as const, label: "Fecha de apertura", placeholder: "YYYY-MM-DD" },
     { key: "descripcion" as const, label: "Descripción del contrato", placeholder: "Descripción del objeto del contrato" },
   ];
 

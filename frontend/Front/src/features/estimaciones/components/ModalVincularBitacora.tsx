@@ -11,7 +11,7 @@ interface ModalVincularBitacoraProps {
   notas: NotaBitacora[];
   vinculadas: string[];
   onClose: () => void;
-  onVincular: (folios: string[]) => void;
+  onVincular: (ids: number[]) => void;
 }
 
 export function ModalVincularBitacora({
@@ -20,7 +20,7 @@ export function ModalVincularBitacora({
   onClose,
   onVincular,
 }: ModalVincularBitacoraProps) {
-  const [sel, setSel] = useState<string[]>([...vinculadas]);
+  const [sel, setSel] = useState<number[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("Todos");
 
@@ -63,13 +63,13 @@ export function ModalVincularBitacora({
       </div>
       <div style={{ maxHeight: 280, overflowY: "auto", marginBottom: 16 }}>
         {filtradas.map((n) => {
-          const isChecked = sel.includes(n.folio);
+          const isChecked = sel.includes(n.id);
           return (
             <div
               key={n.id}
               onClick={() =>
                 setSel((prev) =>
-                  isChecked ? prev.filter((f) => f !== n.folio) : [...prev, n.folio]
+                  isChecked ? prev.filter((f) => f !== n.id) : [...prev, n.id]
                 )
               }
               style={{

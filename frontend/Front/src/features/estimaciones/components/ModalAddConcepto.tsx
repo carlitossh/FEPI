@@ -1,41 +1,72 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "../../../components/Modal";
 import { SectionLabel } from "../../../components/SectionLabel";
 import { TextInput } from "../../../components/TextInput";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
-import { mockCatalogoConceptos } from "../mock/mockCatalogoConceptos";
 import { fmtMXN } from "../../../imports/fmtMXN";
-import { obra, obraSoft, rule, paper2, muted } from "../../../styles/theme";
-import type { ConceptoCatalogo, ConceptoEstimacion } from "../types";
+import {
+  obra,
+  obraSoft,
+  rule,
+  paper2,
+  muted,
+} from "../../../styles/theme";
+import { estimacionesService } from "../services/estimacionesService";
 
 interface ModalAddConceptoProps {
+  contratoId: number;
   onClose: () => void;
-  onAdd: (concepto: ConceptoEstimacion) => void;
+  onAdd: (concepto: any) => void;
 }
 
-export function ModalAddConcepto({ onClose, onAdd }: ModalAddConceptoProps) {
-  const [selected, setSelected] = useState<ConceptoCatalogo | null>(null);
+export function ModalAddConcepto({
+  contratoId,
+  onClose,
+  onAdd,
+}: ModalAddConceptoProps) {
+  const [conceptos, setConceptos] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any | null>(null);
   const [cant, setCant] = useState("");
 
+  useEffect(() => {
+    async function cargar() {
+      const data = await estimacionesService.getConceptosContrato(
+        contratoId
+      );
+
+      setConceptos(data);
+    }
+
+    cargar();
+  }, [contratoId]);
+
   return (
-    <Modal title="Añadir concepto del catálogo" onClose={onClose} width={520}>
+    <Modal
+      title="Añadir concepto del contrato"
+      onClose={onClose}
+      width={520}
+    >
       <div style={{ marginBottom: 16 }}>
         <SectionLabel>Selecciona un concepto</SectionLabel>
-        {mockCatalogoConceptos.map((c) => (
+
+        {conceptos.map((c) => (
           <div
-            key={c.clave}
+            key={c.id}
             onClick={() => setSelected(c)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 12,
               padding: "10px 14px",
-              border: `1.5px solid ${selected?.clave === c.clave ? obra : rule}`,
+              border: `1.5px solid ${
+                selected?.id === c.id ? obra : rule
+              }`,
               borderRadius: 3,
               marginBottom: 6,
               cursor: "pointer",
-              background: selected?.clave === c.clave ? obraSoft : paper2,
+              background:
+                selected?.id === c.id ? obraSoft : paper2,
             }}
           >
             <div
@@ -43,62 +74,125 @@ export function ModalAddConcepto({ onClose, onAdd }: ModalAddConceptoProps) {
                 width: 16,
                 height: 16,
                 borderRadius: "50%",
-                border: `2px solid ${selected?.clave === c.clave ? obra : rule}`,
+                border: `2px solid ${
+                  selected?.id === c.id ? obra : rule
+                }`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              {selected?.clave === c.clave && (
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: obra }} />
+              {selected?.id === c.id && (
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: obra,
+                  }}
+                />
               )}
             </div>
+
             <span
-              style={{ fontFamily: "JetBrains Mono", fontSize: 11.5, color: obra, minWidth: 60 }}
+              style={{
+                fontFamily: "JetBrains Mono",
+                fontSize: 11.5,
+                color: obra,
+                minWidth: 70,
+              }}
             >
               {c.clave}
             </span>
-            <span style={{ fontSize: 12.5, flex: 1 }}>{c.desc}</span>
-            <span style={{ fontFamily: "JetBrains Mono", fontSize: 11, color: muted }}>
-              {c.unidad} · {fmtMXN(c.precioUnitario)}
+
+            <span
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+              }}
+            >
+              {c.descripcion}
+            </span>
+
+            <span
+              style={{
+                fontFamily: "JetBrains Mono",
+                fontSize: 11,
+                color: muted,
+              }}
+            >
+              {c.unidadMedida} · {fmtMXN(c.precioUnitario)}
             </span>
           </div>
         ))}
       </div>
+
       {selected && (
-        <div style={{ marginBottom: 20 }}>
-          <SectionLabel>
-            Cantidad ejecutada en este periodo ({selected.unidad})
-          </SectionLabel>
-          <TextInput
-            placeholder={`Cantidad en ${selected.unidad}`}
-            value={cant}
-            onChange={setCant}
-          />
-          {cant && (
-            <div style={{ fontSize: 12, color: muted, marginTop: 6 }}>
-              Importe estimado:{" "}
-              <strong>{fmtMXN(parseFloat(cant) * selected.precioUnitario)}</strong>
-            </div>
-          )}
-        </div>
+        <>
+          <div style={{ marginBottom: 20 }}>
+            <SectionLabel>
+              Cantidad ejecutada ({selected.unidadMedida})
+            </SectionLabel>
+
+            <TextInput
+              placeholder={`Cantidad en ${selected.unidadMedida}`}
+              value={cant}
+              onChange={setCant}
+            />
+
+            {cant && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: muted,
+                }}
+              >
+                Importe estimado:
+
+                <strong>
+                  {" "}
+                  {fmtMXN(
+                    Number(cant) *
+                      selected.precioUnitario
+                  )}
+                </strong>
+              </div>
+            )}
+          </div>
+        </>
       )}
-      <div style={{ display: "flex", gap: 10 }}>
-        <SecondaryBtn onClick={onClose} style={{ flex: 1 }}>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+        }}
+      >
+        <SecondaryBtn
+          onClick={onClose}
+          style={{ flex: 1 }}
+        >
           Cancelar
         </SecondaryBtn>
+
         <PrimaryBtn
+          style={{ flex: 1 }}
+          disabled={!selected || !cant}
           onClick={() => {
-            if (!selected || !cant) return;
             onAdd({
-              ...selected,
-              cantEjecutada: parseFloat(cant),
-              importe: parseFloat(cant) * selected.precioUnitario,
+              conceptoContratoId: selected.id,
+              clave: selected.clave,
+              desc: selected.descripcion,
+              unidad: selected.unidadMedida,
+              precioUnitario: selected.precioUnitario,
+              cantEjecutada: Number(cant),
+              importe:
+                Number(cant) *
+                selected.precioUnitario,
             });
           }}
-          disabled={!selected || !cant}
-          style={{ flex: 1 }}
         >
           Añadir concepto
         </PrimaryBtn>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
@@ -12,20 +12,100 @@ import { ModalNota } from "../components/ModalNota";
 import { ModalMinuta } from "../components/ModalMinuta";
 import { ModalIncidencia } from "../components/ModalIncidencia";
 import { ModalSolicitud } from "../components/ModalSolicitud";
-import { mockBitacora } from "../mock/mockBitacora";
 import { contarFirmas } from "../../../imports/contarFirmas";
 import {
-  ink, paper2, rule, obra, obraSoft, aprobado, aprobadoSoft,
-  observado, observadoSoft, folio, muted,
+  ink,
+  paper2,
+  rule,
+  obra,
+  obraSoft,
+  aprobado,
+  aprobadoSoft,
+  observado,
+  observadoSoft,
+  folio,
+  muted,
 } from "../../../styles/theme";
 import type { NotaBitacora } from "../types";
+import { bitacoraService } from "../services/bitacoraService";
 
 interface TabBitacoraProps {
   rol: string;
 }
 
+const CONTRATO_ID = 1;
+const BITACORA_ID = 1;
+const USUARIO_ID = 1;
+
+const RolSistemaApi = {
+  Residencia: 2,
+  Superintendente: 3,
+  SupervisorExterno: 4,
+} as const;
+
+function rolApiDesdeRol(rol: string) {
+  if (rol === "Superintendente") return RolSistemaApi.Superintendente;
+  if (rol === "Residente") return RolSistemaApi.Residencia;
+  if (rol === "Supervisor") return RolSistemaApi.SupervisorExterno;
+  return RolSistemaApi.Superintendente;
+}
+
+function mapTipoNota(tipo: number | string): NotaBitacora["tipo"] {
+  if (typeof tipo === "string") return tipo as NotaBitacora["tipo"];
+
+  const tipos: Record<number, NotaBitacora["tipo"]> = {
+    1: "Apertura",
+    2: "Nota",
+    3: "Minuta",
+    4: "Incidencia",
+  };
+
+  return tipos[tipo] ?? "Nota";
+}
+
+function mapFirmas(firmas: any[] | undefined) {
+  const base = {
+    superintendente: false,
+    residente: false,
+    supervisor: false,
+  };
+
+  if (!firmas) return base;
+
+  for (const f of firmas) {
+    if (f.rolFirmante === 3) {
+      base.superintendente = !!f.firmado;
+    }
+
+    if (f.rolFirmante === 2) {
+      base.residente = !!f.firmado;
+    }
+
+    if (f.rolFirmante === 4) {
+      base.supervisor = !!f.firmado;
+    }
+  }
+
+  return base;
+}
+
+function mapNota(n: any): NotaBitacora {
+  return {
+    id: n.id,
+    folio: String(n.folio).padStart(4, "0"),
+    tipo: mapTipoNota(n.tipoRegistro),
+    fecha: n.fechaRegistro
+      ? new Date(n.fechaRegistro).toLocaleDateString("es-MX")
+      : "—",
+    asunto: n.asunto,
+    contenido: n.contenido,
+    firmas: mapFirmas(n.firmas),
+    folioRef: n.folioVinculadoId ? String(n.folioVinculadoId) : null,
+  };
+}
+
 export function TabBitacora({ rol }: TabBitacoraProps) {
-  const [notas, setNotas] = useState<NotaBitacora[]>(mockBitacora);
+  const [notas, setNotas] = useState<NotaBitacora[]>([]);
   const [modalTipo, setModalTipo] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("Todos");
@@ -38,6 +118,31 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
   const puedeCrearIncidencia = rol === "Supervisor";
   const puedeRegistrarSolicitudes = rol === "Superintendente";
 
+  const actorFirma =
+    rol === "Superintendente"
+      ? "superintendente"
+      : rol === "Residente"
+      ? "residente"
+      : rol === "Supervisor"
+      ? "supervisor"
+      : null;
+      
+async function cargarNotas() {
+  try {
+    const data = await bitacoraService.buscarNotas(BITACORA_ID);
+    setNotas(data.map(mapNota));
+    setAbierta(true);
+  } catch (error) {
+    console.error("Error cargando notas:", error);
+    setNotas([]);
+    setAbierta(true); // déjalo true por ahora
+  }
+}
+
+  useEffect(() => {
+    cargarNotas();
+  }, []);
+
   const filtradas = notas
     .filter((n) => filtroTipo === "Todos" || n.tipo === filtroTipo)
     .filter(
@@ -47,33 +152,33 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
         n.folio.includes(busqueda)
     );
 
-  function handleFirmar(nota: NotaBitacora, actor: string) {
-    // api.firmarNota(nota.id, actor)
-    setNotas((prev) =>
-      prev.map((n) =>
-        n.id === nota.id
-          ? { ...n, firmas: { ...n.firmas, [actor.toLowerCase()]: true } }
-          : n
-      )
-    );
-    setDetalle((prev) =>
-      prev
-        ? { ...prev, firmas: { ...prev.firmas, [actor.toLowerCase()]: true } }
-        : null
-    );
+async function handleFirmar(nota: NotaBitacora, actor: string) {
+  try {
+    await bitacoraService.firmarNota(nota.id, {
+      usuarioId: USUARIO_ID,
+      rol: rolApiDesdeRol(rol),
+    });
+
+await cargarNotas();
+
+setDetalle((prev) => {
+  if (!prev) return null;
+
+  return {
+    ...prev,
+    firmas: {
+      ...prev.firmas,
+      [actor]: true,
+    },
+  };
+});
+  } catch (error) {
+    console.error("Error firmando nota:", error);
+    alert("No se pudo firmar la nota. Revisa consola o backend.");
   }
-
-  const actorFirma =
-    rol === "Superintendente"
-      ? "superintendente"
-      : rol === "Residente"
-      ? "residente"
-      : rol === "Supervisor"
-      ? "supervisor"
-      : null;
-
+}
   return (
-    <div>
+        <div>
       {!abierta && (
         <div
           style={{
@@ -90,8 +195,11 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
           <div style={{ fontSize: 13, color: observado, fontWeight: 600 }}>
             La bitácora no ha sido abierta. No es posible crear notas.
           </div>
+
           {rol === "Residente" && (
-            <PrimaryBtn onClick={() => setShowApertura(true)}>Abrir bitácora →</PrimaryBtn>
+            <PrimaryBtn onClick={() => setShowApertura(true)}>
+              Abrir bitácora →
+            </PrimaryBtn>
           )}
         </div>
       )}
@@ -100,15 +208,23 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
         {puedeCrearNota && abierta && (
           <PrimaryBtn onClick={() => setModalTipo("nota")}>+ Nota</PrimaryBtn>
         )}
+
         {puedeCrearMinuta && abierta && (
           <SecondaryBtn onClick={() => setModalTipo("minuta")}>+ Minuta</SecondaryBtn>
         )}
+
         {puedeCrearIncidencia && abierta && (
-          <SecondaryBtn onClick={() => setModalTipo("incidencia")}>+ Incidencia</SecondaryBtn>
+          <SecondaryBtn onClick={() => setModalTipo("incidencia")}>
+            + Incidencia
+          </SecondaryBtn>
         )}
+
         {puedeRegistrarSolicitudes && abierta && (
-          <SecondaryBtn onClick={() => setModalTipo("solicitud")}>+ Solicitud/Aviso</SecondaryBtn>
+          <SecondaryBtn onClick={() => setModalTipo("solicitud")}>
+            + Solicitud/Aviso
+          </SecondaryBtn>
         )}
+
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <div style={{ position: "relative" }}>
             <Search
@@ -121,6 +237,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                 color: muted,
               }}
             />
+
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -137,6 +254,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               }}
             />
           </div>
+
           <select
             value={filtroTipo}
             onChange={(e) => setFiltroTipo(e.target.value)}
@@ -150,7 +268,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               outline: "none",
             }}
           >
-            {["Todos", "Apertura", "Nota", "Minuta", "Incidencia", "Solicitud"].map((o) => (
+            {["Todos", "Apertura", "Nota", "Minuta", "Incidencia"].map((o) => (
               <option key={o}>{o}</option>
             ))}
           </select>
@@ -160,18 +278,34 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
       <Card style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
           <TableHeader cols={["Folio", "Tipo", "Fecha", "Asunto", "Firmas", "Folio ref.", ""]} />
+
           <tbody>
             {filtradas.map((b, i) => {
-              const fCount = contarFirmas(b.firmas);
+const firmas = b.firmas ?? {
+  superintendente: false,
+  residente: false,
+  supervisor: false,
+};
+
+
+const firmadas = [
+  firmas.superintendente,
+  firmas.residente,
+  firmas.supervisor,
+].filter(Boolean).length;
+
+const fCount = `${firmadas}/3`;
               const todas = fCount === "3/3";
               const ninguna = fCount === "0/3";
+
               return (
                 <tr
                   key={b.id}
                   style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
                   onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
                   onMouseLeave={(el) =>
-                    (el.currentTarget.style.background = i % 2 === 1 ? "#FAF8F2" : paper2)
+                    (el.currentTarget.style.background =
+                      i % 2 === 1 ? "#FAF8F2" : paper2)
                   }
                 >
                   <td
@@ -185,9 +319,11 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                   >
                     {b.folio}
                   </td>
+
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
                     <EstadoBadge estado={b.tipo} />
                   </td>
+
                   <td
                     style={{
                       padding: "10px 14px",
@@ -198,9 +334,11 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                   >
                     {b.fecha}
                   </td>
+
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
                     {b.asunto}
                   </td>
+
                   <td
                     style={{
                       padding: "10px 14px",
@@ -222,6 +360,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                       </span>
                     )}
                   </td>
+
                   <td
                     style={{
                       padding: "10px 14px",
@@ -233,6 +372,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                   >
                     {b.folioRef || "—"}
                   </td>
+
                   <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
                     <button
                       onClick={() => setDetalle(b)}
@@ -257,7 +397,6 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
         </table>
       </Card>
 
-      {/* Detalle modal */}
       {detalle && (
         <Modal
           title={`Nota ${detalle.folio} — ${detalle.asunto}`}
@@ -268,10 +407,14 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
             <SectionLabel>Tipo</SectionLabel>
             <EstadoBadge estado={detalle.tipo} />
           </div>
+
           <div style={{ marginBottom: 14 }}>
             <SectionLabel>Fecha</SectionLabel>
-            <div style={{ fontFamily: "JetBrains Mono", fontSize: 12.5 }}>{detalle.fecha}</div>
+            <div style={{ fontFamily: "JetBrains Mono", fontSize: 12.5 }}>
+              {detalle.fecha}
+            </div>
           </div>
+
           <div style={{ marginBottom: 14 }}>
             <SectionLabel>Contenido</SectionLabel>
             <div
@@ -287,6 +430,7 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               {detalle.contenido}
             </div>
           </div>
+
           {detalle.folioRef && (
             <div style={{ marginBottom: 14 }}>
               <SectionLabel>Folio de referencia</SectionLabel>
@@ -295,17 +439,32 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
               </span>
             </div>
           )}
+
           {detalle.tipo !== "Incidencia" && (
             <div style={{ marginBottom: 20 }}>
               <SectionLabel>Firmas</SectionLabel>
+
               <div style={{ display: "flex", gap: 8 }}>
                 {[
                   { key: "superintendente", label: "Superintendente" },
                   { key: "residente", label: "Residente" },
                   { key: "supervisor", label: "Supervisión" },
                 ].map((s) => {
-                  const done = detalle.firmas[s.key as keyof typeof detalle.firmas];
-                  const esMiTurno = actorFirma === s.key && !done;
+                  const firmas = detalle.firmas ?? {
+  superintendente: false,
+  residente: false,
+  supervisor: false,
+};
+
+const firmasDetalle = detalle.firmas ?? {
+  superintendente: false,
+  residente: false,
+  supervisor: false,
+};
+
+const done = firmasDetalle[s.key as keyof typeof firmasDetalle];
+const esMiTurno = actorFirma === s.key && !done;
+
                   return (
                     <div
                       key={s.key}
@@ -323,17 +482,26 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
                         cursor: esMiTurno ? "pointer" : "default",
                       }}
                     >
-                      {done ? `✓ ${s.label}` : esMiTurno ? `✍ Firmar` : s.label}
+                      {done ? `✓ ${s.label}` : esMiTurno ? "✍ Firmar" : s.label}
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
+
           {detalle.tipo === "Incidencia" && (
             <PrimaryBtn
-              onClick={() => {
-                /* generar nota desde incidencia */
+              onClick={async () => {
+                await bitacoraService.generarNotaDesdeIncidencia({
+                  incidenciaId: detalle.id,
+                  tipoNotaCatalogoId: 1,
+                  usuarioEmisorId: USUARIO_ID,
+                  rolEmisor: rolApiDesdeRol(rol),
+                });
+
+                setDetalle(null);
+                await cargarNotas();
               }}
               style={{ width: "100%", marginBottom: 10 }}
             >
@@ -346,11 +514,31 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
       {showApertura && (
         <ModalAperturaBitacora
           onClose={() => setShowApertura(false)}
-          onAbrir={() => {
-            // api.abrirBitacora(mockContrato.id, data)
-            setAbierta(true);
-            setShowApertura(false);
-          }}
+onAbrir={async (data) => {
+  try {
+    console.log("Abriendo bitácora", data);
+
+    await bitacoraService.abrirBitacora({
+      contratoId: CONTRATO_ID,
+      nombreContrato: data.descripcion,
+      numeroContrato: `Contrato-${CONTRATO_ID}`,
+      tipoContrato: "ObraPublica",
+      dependenciaContratante: "Dependencia de prueba",
+      contratistaEmpresa: "Contratista de prueba",
+      residenteNombre: "Residente",
+      supervisorDesignadoNombre: "Supervisor",
+      superintendenteNombre: "Superintendente",
+      fechaAperturaFormal: data.fecha,
+    });
+
+    setAbierta(true);
+    setShowApertura(false);
+    await cargarNotas();
+  } catch (error) {
+    console.error(error);
+    alert("No se pudo abrir la bitácora. Revisa la consola.");
+  }
+}}
         />
       )}
 
@@ -358,50 +546,48 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
         <ModalNota
           tipo="Nota"
           onClose={() => setModalTipo(null)}
-          siguienteFolio={`${String(
-            notas.filter((n) => n.folio.match(/^\d+$/)).length + 1
-          ).padStart(4, "0")}`}
-          onGuardar={(data) => {
-            const nueva: NotaBitacora = {
-              id: Date.now(),
-              folio: data.folio,
-              tipo: "Nota",
-              fecha: new Date().toLocaleDateString("es-MX"),
-              asunto: data.asunto,
-              contenido: data.contenido,
-              firmas: {
-                superintendente: rol === "Superintendente",
-                residente: false,
-                supervisor: false,
-              },
-              folioRef: data.folioRef || null,
-            };
-            // api.crearNota(mockContrato.id, data)
-            setNotas((prev) => [...prev, nueva]);
-            setModalTipo(null);
-          }}
+          siguienteFolio={`${String(notas.length + 1).padStart(4, "0")}`}
+onGuardar={async (data) => {
+  try {
+    console.log("Creando nota:", data);
+
+    await bitacoraService.crearNota({
+      bitacoraId: BITACORA_ID,
+      tipoNotaCatalogoId: 2,
+      asunto: data.asunto,
+      contenido: data.contenido,
+      folioVinculadoId: data.folioRef ? Number(data.folioRef) : null,
+      usuarioEmisorId: USUARIO_ID,
+      rolEmisor: rolApiDesdeRol(rol),
+    });
+
+    setModalTipo(null);
+    await cargarNotas();
+  } catch (error) {
+    console.error("Error creando nota:", error);
+    alert("No se pudo crear la nota. Revisa consola y backend.");
+  }
+}}
         />
       )}
 
       {modalTipo === "minuta" && (
         <ModalMinuta
           onClose={() => setModalTipo(null)}
-          onGuardar={(data) => {
-            // api.crearMinuta(mockContrato.id, data)
-            setNotas((prev) => [
-              ...prev,
-              {
-                id: Date.now(),
-                folio: `MIN-${Date.now()}`,
-                tipo: "Minuta",
-                fecha: data.fecha,
-                asunto: data.acuerdos.substring(0, 40) + "...",
-                contenido: data.acuerdos,
-                firmas: { superintendente: false, residente: false, supervisor: true },
-                folioRef: null,
-              },
-            ]);
+          onGuardar={async (data) => {
+            await bitacoraService.crearMinuta({
+              bitacoraId: BITACORA_ID,
+              fecha: data.fecha,
+              lugar: "Sala de juntas de obra",
+              contenidoAcuerdos: data.acuerdos,
+              participantes: data.participantes
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean),
+            });
+
             setModalTipo(null);
+            await cargarNotas();
           }}
         />
       )}
@@ -409,25 +595,17 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
       {modalTipo === "incidencia" && (
         <ModalIncidencia
           onClose={() => setModalTipo(null)}
-          onGuardar={(data) => {
-            // api.crearIncidencia(mockContrato.id, data)
-            setNotas((prev) => [
-              ...prev,
-              {
-                id: Date.now(),
-                folio: `INC-${String(
-                  notas.filter((n) => n.folio.startsWith("INC")).length + 1
-                ).padStart(2, "0")}`,
-                tipo: "Incidencia",
-                fecha: data.fecha,
-                asunto: data.descripcion.substring(0, 50),
-                contenido: data.descripcion,
-                firmas: { superintendente: false, residente: false, supervisor: false },
-                folioRef: null,
-                foto: true,
-              },
-            ]);
+          onGuardar={async (data) => {
+            await bitacoraService.crearIncidencia({
+              bitacoraId: BITACORA_ID,
+              fechaEvento: data.fecha,
+              descripcion: data.descripcion,
+              urlFotografia: data.foto,
+              actorRegistroId: USUARIO_ID,
+            });
+
             setModalTipo(null);
+            await cargarNotas();
           }}
         />
       )}
@@ -435,21 +613,19 @@ export function TabBitacora({ rol }: TabBitacoraProps) {
       {modalTipo === "solicitud" && (
         <ModalSolicitud
           onClose={() => setModalTipo(null)}
-          onGuardar={(data) => {
-            setNotas((prev) => [
-              ...prev,
-              {
-                id: Date.now(),
-                folio: String(notas.length + 1).padStart(4, "0"),
-                tipo: "Solicitud",
-                fecha: new Date().toLocaleDateString("es-MX"),
-                asunto: `${data.tipoSolicitud}: ${data.asunto}`,
-                contenido: data.descripcion,
-                firmas: { superintendente: true, residente: false, supervisor: false },
-                folioRef: null,
-              },
-            ]);
+          onGuardar={async (data) => {
+            await bitacoraService.crearNota({
+              bitacoraId: BITACORA_ID,
+              tipoNotaCatalogoId: 2,
+              asunto: `${data.tipoSolicitud}: ${data.asunto}`,
+              contenido: data.descripcion,
+              folioVinculadoId: null,
+              usuarioEmisorId: USUARIO_ID,
+              rolEmisor: rolApiDesdeRol(rol),
+            });
+
             setModalTipo(null);
+            await cargarNotas();
           }}
         />
       )}

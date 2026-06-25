@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Upload, Clock, DollarSign, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Clock, DollarSign, Search } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
@@ -12,46 +12,155 @@ import { TextArea } from "../../../components/TextArea";
 import { Modal } from "../../../components/Modal";
 import { ModalNuevaEstimacion } from "../components/ModalNuevaEstimacion";
 import { ModalAddConcepto } from "../components/ModalAddConcepto";
-import { ModalVincularBitacora } from "../components/ModalVincularBitacora";
-import { mockEstimaciones } from "../mock/mockEstimaciones";
-import { mockBitacora } from "../../bitacora/mock/mockBitacora";
-import { mockContrato } from "../../dashboard/mock/mockContrato";
 import { fmtMXN } from "../../../imports/fmtMXN";
 import {
-  ink, paper2, rule, folio, folioSoft, obra, obraSoft, aprobado,
-  observado, observadoSoft, muted, pagado, pagadoSoft,
+  ink,
+  paper2,
+  rule,
+  folio,
+  folioSoft,
+  obra,
+  obraSoft,
+  aprobado,
+  observado,
+  observadoSoft,
+  muted,
+  pagado,
 } from "../../../styles/theme";
+import { estimacionesService } from "../services/estimacionesService";
 import type { Estimacion, ConceptoEstimacion } from "../types";
 
 interface TabEstimacionesProps {
   rol: string;
 }
 
+const CONTRATO_ID = 1;
+const USUARIO_ID = 1;
+
+function mapEstado(estado: number | string): Estimacion["estado"] {
+  if (typeof estado === "string") return estado as Estimacion["estado"];
+
+  const estados: Record<number, Estimacion["estado"]> = {
+    1: "Borrador",
+    2: "Enviada",
+    3: "Observada",
+    4: "Aprobada",
+    5: "Rechazada" as Estimacion["estado"],
+    6: "Pagada",
+  };
+
+  return estados[estado] ?? "Borrador";
+}
+
+function mapResumen(e: any): Estimacion {
+  return {
+    id: e.id,
+    periodo: e.periodo,
+    monto: e.montoEstimado ?? e.monto ?? 0,
+    estado: mapEstado(e.estado),
+    dias: e.estado === 2 ? "18/20" : undefined,
+    conceptos: [],
+    notasVinculadas: [],
+    observaciones: [],
+    historial: [],
+  };
+}
+
+function mapDetalle(e: any): Estimacion {
+  return {
+    id: e.id,
+    periodo: e.periodo,
+    monto: e.montoEstimado ?? 0,
+    estado: mapEstado(e.estado),
+    dias: e.estado === 2 ? "18/20" : undefined,
+    conceptos:
+      e.conceptos?.map((c: any) => ({
+        clave: c.clave,
+        desc: c.descripcion,
+        unidad: c.unidadMedida ?? "",
+        cantEjecutada: c.cantidadEjecutada,
+        precioUnitario: c.precioUnitario,
+        importe: c.importe,
+      })) ?? [],
+    notasVinculadas: e.notasVinculadas ?? [],
+    observaciones:
+      e.observaciones?.map((o: any) => ({
+        ref: "General",
+        txt: o.texto,
+        quien: `Usuario ${o.usuarioId}`,
+        hora: new Date(o.fechaCreacion).toLocaleString("es-MX"),
+        color: observado,
+      })) ?? [],
+    historial: [],
+  };
+}
+
 export function TabEstimaciones({ rol }: TabEstimacionesProps) {
-  const [estimaciones, setEstimaciones] = useState<Estimacion[]>(mockEstimaciones);
+  const [estimaciones, setEstimaciones] = useState<Estimacion[]>([]);
   const [selected, setSelected] = useState<Estimacion | null>(null);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [busqueda, setBusqueda] = useState("");
   const [obsTab, setObsTab] = useState("Carátula");
+
+  const EstadoEstimacionApi = {
+    Borrador: 1,
+    Enviada: 2,
+    Observada: 3,
+    Aprobada: 4,
+    Rechazada: 5,
+    Pagada: 6,
+  } as const;
+
   const [showNuevaEst, setShowNuevaEst] = useState(false);
   const [showAddConcepto, setShowAddConcepto] = useState(false);
-  const [showVincularBitacora, setShowVincularBitacora] = useState(false);
   const [showObservacion, setShowObservacion] = useState(false);
   const [showRechazo, setShowRechazo] = useState(false);
   const [showPago, setShowPago] = useState(false);
   const [showHistorial, setShowHistorial] = useState(false);
+
   const [nuevaObs, setNuevaObs] = useState("");
   const [motivoRechazo, setMotivoRechazo] = useState("");
-  const [datoPago, setDatoPago] = useState({ referencia: "", banco: "", fecha: "", monto: "" });
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [datoPago, setDatoPago] = useState({
+    referencia: "",
+    fecha: "",
+    monto: "",
+  });
 
   const puedeEnviar = rol === "Superintendente";
   const puedeObservar = rol === "Supervisor";
   const puedeAprobarRechazar = rol === "Residente";
   const puedePagar = rol === "Financiero";
+
   const esBorrador = selected?.estado === "Borrador";
   const esEnviada = selected?.estado === "Enviada";
   const esAprobada = selected?.estado === "Aprobada";
+
+  async function cargarEstimaciones() {
+    const data = await estimacionesService.listarPorContrato(CONTRATO_ID);
+    setEstimaciones(data.map(mapResumen));
+  }
+
+  async function abrirEstimacion(id: number) {
+    const detalle = await estimacionesService.obtenerDetalle(id);
+    const mapped = mapDetalle(detalle);
+
+    const historial = await estimacionesService.obtenerHistorial(id);
+
+    mapped.historial =
+      historial?.map((h: any) => ({
+        estadoAnterior: mapEstado(h.estadoAnterior),
+        estadoNuevo: mapEstado(h.estadoNuevo),
+        fecha: new Date(h.fecha).toLocaleString("es-MX"),
+        usuario: `Usuario ${h.usuarioId}`,
+      })) ?? [];
+
+    setSelected(mapped);
+    setObsTab("Carátula");
+  }
+
+  useEffect(() => {
+    cargarEstimaciones();
+  }, []);
 
   const filtradas = estimaciones
     .filter((e) => filtroEstado === "Todos" || e.estado === filtroEstado)
@@ -66,75 +175,88 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
     ? estimaciones.filter((e) => e.estado === "Aprobada")
     : filtradas;
 
-  function handleEnviar() {
-    // api.enviarEstimacion(selected.id)
-    setEstimaciones((prev) =>
-      prev.map((e) => (e.id === selected!.id ? { ...e, estado: "Enviada" as const } : e))
-    );
-    setSelected((prev) => (prev ? { ...prev, estado: "Enviada" as const } : null));
+  async function handleEnviar() {
+    if (!selected) return;
+
+    await estimacionesService.enviar(selected.id, USUARIO_ID);
+    await cargarEstimaciones();
+    await abrirEstimacion(selected.id);
   }
 
-  function handleAprobar() {
-    // api.aprobarEstimacion(selected.id)
-    setEstimaciones((prev) =>
-      prev.map((e) => (e.id === selected!.id ? { ...e, estado: "Aprobada" as const } : e))
-    );
-    setSelected((prev) => (prev ? { ...prev, estado: "Aprobada" as const } : null));
+  async function handleAprobar() {
+    if (!selected) return;
+
+    await estimacionesService.cambiarEstado(selected.id, {
+      nuevoEstado: EstadoEstimacionApi.Aprobada,
+      usuarioId: USUARIO_ID,
+      comentario: "Estimación aprobada.",
+    });
+
+    await cargarEstimaciones();
+    await abrirEstimacion(selected.id);
   }
 
-  function handleRechazar() {
-    if (!motivoRechazo.trim()) return;
-    // api.rechazarEstimacion(selected.id, motivoRechazo)
-    setEstimaciones((prev) =>
-      prev.map((e) => (e.id === selected!.id ? { ...e, estado: "Borrador" as const } : e))
-    );
-    setSelected((prev) => (prev ? { ...prev, estado: "Borrador" as const } : null));
-    setShowRechazo(false);
+  async function handleRechazar() {
+    if (!selected || !motivoRechazo.trim()) return;
+
+    await estimacionesService.cambiarEstado(selected.id, {
+      nuevoEstado: EstadoEstimacionApi.Rechazada,
+      usuarioId: USUARIO_ID,
+      comentario: motivoRechazo,
+    });
+
     setMotivoRechazo("");
+    setShowRechazo(false);
+
+    await cargarEstimaciones();
+    await abrirEstimacion(selected.id);
   }
 
-  function handleObservar() {
-    // api.observarEstimacion(selected.id)
-    setEstimaciones((prev) =>
-      prev.map((e) => (e.id === selected!.id ? { ...e, estado: "Observada" as const } : e))
-    );
-    setSelected((prev) => (prev ? { ...prev, estado: "Observada" as const } : null));
+  async function handleObservar() {
+    if (!selected) return;
+
+    await estimacionesService.cambiarEstado(selected.id, {
+      nuevoEstado: EstadoEstimacionApi.Observada,
+      usuarioId: USUARIO_ID,
+      comentario: "Estimación marcada como observada.",
+    });
+
+    await cargarEstimaciones();
+    await abrirEstimacion(selected.id);
   }
 
-  function handlePago() {
-    if (!datoPago.referencia || !datoPago.banco || !datoPago.fecha || !datoPago.monto) return;
-    // api.registrarPago(selected.id, datoPago)
-    setEstimaciones((prev) =>
-      prev.map((e) => (e.id === selected!.id ? { ...e, estado: "Pagada" as const } : e))
-    );
-    setSelected((prev) => (prev ? { ...prev, estado: "Pagada" as const } : null));
+  async function handlePago() {
+    if (!selected || !datoPago.referencia || !datoPago.fecha || !datoPago.monto) return;
+
+    await estimacionesService.registrarPago(selected.id, {
+      referenciaBancaria: datoPago.referencia,
+      fechaPago: datoPago.fecha,
+      montoPagado: Number(datoPago.monto),
+    });
+
+    setDatoPago({ referencia: "", fecha: "", monto: "" });
     setShowPago(false);
-    setDatoPago({ referencia: "", banco: "", fecha: "", monto: "" });
+
+    await cargarEstimaciones();
+    await abrirEstimacion(selected.id);
   }
 
-  function handleNuevaObs() {
-    if (!nuevaObs.trim()) return;
-    const obs = { ref: "General", txt: nuevaObs, quien: `${rol}`, hora: "ahora", color: obra };
-    // api.addObservacion(selected.id, obs)
-    setSelected((prev) =>
-      prev ? { ...prev, observaciones: [...(prev.observaciones || []), obs] } : null
-    );
+  async function handleNuevaObs() {
+    if (!selected || !nuevaObs.trim()) return;
+
+    await estimacionesService.agregarObservacion(selected.id, nuevaObs, USUARIO_ID);
+
     setNuevaObs("");
     setShowObservacion(false);
+
+    await abrirEstimacion(selected.id);
   }
 
-  const detailTabs = [
-    "Carátula",
-    "Generadores",
-    `Notas vinculadas (${selected?.notasVinculadas?.length || 0})`,
-    "Historial",
-  ];
-
-  if (selected) {
+  const detailTabs = ["Carátula", "Generadores", "Notas vinculadas", "Historial"];
+    if (selected) {
     const totalEst =
-      selected.conceptos?.reduce((a, c) => a + (c.importe || 0), 0) || selected.monto;
-    const acumulado = 9_450_000;
-    const saldo = mockContrato.monto - acumulado;
+      selected.conceptos?.reduce((a, c) => a + (c.importe || 0), 0) ||
+      selected.monto;
 
     return (
       <div>
@@ -156,7 +278,6 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
           ← Volver a bandeja
         </button>
 
-        {/* Header */}
         <div
           style={{
             background: ink,
@@ -175,9 +296,13 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               letterSpacing: "0.06em",
             }}
           >
-            <span>SELLO DIGITAL · FOLIO-EST-{String(selected.id).padStart(3, "0")}</span>
+            <span>
+              SELLO DIGITAL · FOLIO-EST-
+              {String(selected.id).padStart(3, "0")}
+            </span>
             <span>Plazo legal: Art. 55 LOPSRM — 20 días hábiles</span>
           </div>
+
           <div
             style={{
               display: "flex",
@@ -197,38 +322,41 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 Estimación N.° {String(selected.id).padStart(3, "0")}
               </div>
               <div style={{ fontSize: 11, color: "#C7C2B0", marginTop: 2 }}>
-                Contrato {mockContrato.id} · Periodo {selected.periodo} · Superintendente: Ing.
-                R. Domínguez
+                Contrato {CONTRATO_ID} · Periodo {selected.periodo}
               </div>
             </div>
+
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <EstadoBadge estado={selected.estado} />
-              {selected.estado === "Aprobada" && (
-                <button
-                  onClick={() => setShowHistorial(true)}
-                  style={{
-                    fontSize: 11,
-                    color: muted,
-                    background: "none",
-                    border: `1px solid ${rule}`,
-                    borderRadius: 3,
-                    padding: "4px 10px",
-                    cursor: "pointer",
-                    fontFamily: "'IBM Plex Sans', sans-serif",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <Clock size={11} /> Historial
-                </button>
-              )}
+              <button
+                onClick={() => setShowHistorial(true)}
+                style={{
+                  fontSize: 11,
+                  color: muted,
+                  background: "none",
+                  border: `1px solid ${rule}`,
+                  borderRadius: 3,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Clock size={11} /> Historial
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Detail Tabs */}
-        <div style={{ display: "flex", background: "#EFEAE0", borderBottom: `1px solid ${rule}` }}>
+        <div
+          style={{
+            display: "flex",
+            background: "#EFEAE0",
+            borderBottom: `1px solid ${rule}`,
+          }}
+        >
           {detailTabs.map((t) => (
             <button
               key={t}
@@ -238,7 +366,9 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 fontSize: 12.5,
                 color: obsTab === t ? obra : muted,
                 border: "none",
-                borderBottom: `3px solid ${obsTab === t ? obra : "transparent"}`,
+                borderBottom: `3px solid ${
+                  obsTab === t ? obra : "transparent"
+                }`,
                 background: obsTab === t ? paper2 : "transparent",
                 fontWeight: obsTab === t ? 600 : 400,
                 cursor: "pointer",
@@ -250,7 +380,6 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
           ))}
         </div>
 
-        {/* Body */}
         {obsTab === "Carátula" && (
           <div
             style={{
@@ -261,7 +390,12 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               background: paper2,
             }}
           >
-            <div style={{ padding: "20px 22px", borderRight: `1px solid ${rule}` }}>
+            <div
+              style={{
+                padding: "20px 22px",
+                borderRight: `1px solid ${rule}`,
+              }}
+            >
               {selected.dias && (
                 <div
                   style={{
@@ -295,8 +429,7 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                     {selected.dias}
                   </div>
                   <div style={{ fontSize: 12, color: muted }}>
-                    Quedan <strong style={{ color: ink }}>2 días hábiles</strong> antes del
-                    vencimiento del plazo legal.
+                    Estimación enviada. Revisar dentro del plazo legal.
                   </div>
                 </div>
               )}
@@ -304,8 +437,8 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
                 {[
                   { v: fmtMXN(totalEst), l: "Monto estimado" },
-                  { v: fmtMXN(acumulado), l: "Acumulado del contrato" },
-                  { v: fmtMXN(saldo), l: "Saldo pendiente" },
+                  { v: selected.periodo, l: "Periodo" },
+                  { v: selected.estado, l: "Estado actual" },
                 ].map((k) => (
                   <div
                     key={k.l}
@@ -341,24 +474,42 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 ))}
               </div>
 
-              {/* Tabla de conceptos */}
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-                <TableHeader cols={["Clave", "Descripción", "Unidad", "Cant.", "P.U.", "Importe"]} />
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 12.5,
+                }}
+              >
+                <TableHeader
+                  cols={[
+                    "Clave",
+                    "Descripción",
+                    "Unidad",
+                    "Cant.",
+                    "P.U.",
+                    "Importe",
+                  ]}
+                />
                 <tbody>
                   {(selected.conceptos || []).map((r) => (
-                    <tr key={r.clave} style={{ background: r.flag ? folioSoft : "transparent" }}>
+                    <tr key={r.clave}>
                       <td
                         style={{
                           padding: "8px 14px",
                           borderBottom: `1px solid ${rule}`,
                           fontFamily: "JetBrains Mono",
                           fontSize: 11.5,
-                          borderLeft: r.flag ? `3px solid ${folio}` : "none",
                         }}
                       >
                         {r.clave}
                       </td>
-                      <td style={{ padding: "8px 14px", borderBottom: `1px solid ${rule}`, fontSize: 12.5 }}>
+                      <td
+                        style={{
+                          padding: "8px 14px",
+                          borderBottom: `1px solid ${rule}`,
+                        }}
+                      >
                         {r.desc}
                       </td>
                       <td
@@ -398,13 +549,13 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                           fontFamily: "JetBrains Mono",
                           fontSize: 11.5,
                           fontWeight: 600,
-                          color: r.flag ? folio : ink,
                         }}
                       >
                         {fmtMXN(r.importe)}
                       </td>
                     </tr>
                   ))}
+
                   {(selected.conceptos || []).length === 0 && (
                     <tr>
                       <td
@@ -412,7 +563,6 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                         style={{
                           padding: "20px 14px",
                           color: muted,
-                          fontSize: 12,
                           textAlign: "center",
                         }}
                       >
@@ -423,61 +573,52 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 </tbody>
               </table>
 
-              {/* Resumen por partida */}
-              {(selected.conceptos || []).length > 0 && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: "12px 14px",
+                  background: "#FAF8F2",
+                  border: `1px solid ${rule}`,
+                  borderRadius: 3,
+                }}
+              >
                 <div
                   style={{
-                    marginTop: 16,
-                    padding: "12px 14px",
-                    background: "#FAF8F2",
-                    border: `1px solid ${rule}`,
-                    borderRadius: 3,
+                    fontSize: 10.5,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    color: muted,
+                    marginBottom: 8,
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 10.5,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: muted,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Resumen — total estimado
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'IBM Plex Serif', serif",
-                      fontSize: 20,
-                      fontWeight: 700,
-                      color: obra,
-                    }}
-                  >
-                    {fmtMXN(totalEst)}
-                  </div>
+                  Resumen — total estimado
                 </div>
-              )}
+                <div
+                  style={{
+                    fontFamily: "'IBM Plex Serif', serif",
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: obra,
+                  }}
+                >
+                  {fmtMXN(totalEst)}
+                </div>
+              </div>
 
-              {/* Acciones según rol y estado */}
-              <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 20,
+                  flexWrap: "wrap",
+                }}
+              >
                 {esBorrador && puedeEnviar && (
                   <>
-                    <PrimaryBtn onClick={() => setShowAddConcepto(true)}>+ Añadir concepto</PrimaryBtn>
-                    <SecondaryBtn onClick={() => setShowVincularBitacora(true)}>
-                      Vincular bitácora
-                    </SecondaryBtn>
-                    <SecondaryBtn onClick={() => fileRef.current?.click()}>
-                      <Upload size={12} style={{ marginRight: 4 }} /> Adjuntar docs
-                    </SecondaryBtn>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      multiple
-                      style={{ display: "none" }}
-                      onChange={() => {
-                        /* api.adjuntarDoc */
-                      }}
-                    />
+                    <PrimaryBtn onClick={() => setShowAddConcepto(true)}>
+                      + Añadir concepto
+                    </PrimaryBtn>
+
                     <PrimaryBtn
                       onClick={handleEnviar}
                       style={{ background: folio, marginLeft: "auto" }}
@@ -486,14 +627,21 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                     </PrimaryBtn>
                   </>
                 )}
+
                 {esEnviada && puedeAprobarRechazar && (
                   <>
-                    <PrimaryBtn onClick={handleAprobar} style={{ background: aprobado }}>
+                    <PrimaryBtn
+                      onClick={handleAprobar}
+                      style={{ background: aprobado }}
+                    >
                       ✓ Aprobar
                     </PrimaryBtn>
-                    <DangerBtn onClick={() => setShowRechazo(true)}>Rechazar</DangerBtn>
+                    <DangerBtn onClick={() => setShowRechazo(true)}>
+                      Rechazar
+                    </DangerBtn>
                   </>
                 )}
+
                 {esEnviada && puedeObservar && (
                   <>
                     <SecondaryBtn onClick={() => setShowObservacion(true)}>
@@ -502,29 +650,27 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                     <SecondaryBtn onClick={handleObservar} color={observado}>
                       Marcar como Observada
                     </SecondaryBtn>
-                    <PrimaryBtn onClick={handleAprobar} style={{ background: aprobado }}>
+                    <PrimaryBtn
+                      onClick={handleAprobar}
+                      style={{ background: aprobado }}
+                    >
                       Aprobar
                     </PrimaryBtn>
                   </>
                 )}
+
                 {esAprobada && puedePagar && (
                   <PrimaryBtn
                     onClick={() => setShowPago(true)}
                     style={{ background: pagado }}
                   >
-                    <DollarSign size={13} style={{ marginRight: 4 }} /> Registrar pago
+                    <DollarSign size={13} style={{ marginRight: 4 }} />{" "}
+                    Registrar pago
                   </PrimaryBtn>
                 )}
-                <SecondaryBtn onClick={() => setShowHistorial(true)}>
-                  <Clock size={12} style={{ marginRight: 4 }} /> Ver historial
-                </SecondaryBtn>
               </div>
-              <p style={{ fontSize: 11, color: muted, marginTop: 8 }}>
-                Documento del contratista — acceso restringido por rol.
-              </p>
             </div>
 
-            {/* Panel de observaciones */}
             <div style={{ padding: "20px 18px", background: "#FAF8F2" }}>
               <div
                 style={{
@@ -538,13 +684,20 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               >
                 Observaciones ({(selected.observaciones || []).length})
               </div>
+
               {(selected.observaciones || []).length === 0 && (
                 <div
-                  style={{ fontSize: 12, color: muted, textAlign: "center", padding: "20px 0" }}
+                  style={{
+                    fontSize: 12,
+                    color: muted,
+                    textAlign: "center",
+                    padding: "20px 0",
+                  }}
                 >
                   Sin observaciones registradas
                 </div>
               )}
+
               {(selected.observaciones || []).map((n, i) => (
                 <div
                   key={i}
@@ -574,6 +727,7 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                   </div>
                 </div>
               ))}
+
               {(puedeObservar || puedeAprobarRechazar) && esEnviada && (
                 <button
                   onClick={() => setShowObservacion(true)}
@@ -598,7 +752,13 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
         )}
 
         {obsTab === "Generadores" && (
-          <Card style={{ padding: 24, borderTop: "none", borderRadius: "0 0 4px 4px" }}>
+          <Card
+            style={{
+              padding: 24,
+              borderTop: "none",
+              borderRadius: "0 0 4px 4px",
+            }}
+          >
             <SectionLabel>Generadores de cantidad</SectionLabel>
             {(selected.conceptos || []).map((c) => (
               <div
@@ -629,10 +789,22 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                     {c.clave}
                   </span>
                   <span style={{ fontSize: 12.5 }}>{c.desc}</span>
-                  <span style={{ fontFamily: "JetBrains Mono", fontSize: 12, color: ink }}>
+                  <span
+                    style={{
+                      fontFamily: "JetBrains Mono",
+                      fontSize: 12,
+                      color: ink,
+                    }}
+                  >
                     {c.cantEjecutada} {c.unidad}
                   </span>
-                  <span style={{ fontFamily: "JetBrains Mono", fontSize: 12, fontWeight: 600 }}>
+                  <span
+                    style={{
+                      fontFamily: "JetBrains Mono",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
                     {fmtMXN(c.importe)}
                   </span>
                 </div>
@@ -646,83 +818,74 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                     color: muted,
                   }}
                 >
-                  Generador adjunto — evidencia fotográfica y mediciones de campo.
+                  Generador registrado con base en cantidades ejecutadas.
                 </div>
               </div>
             ))}
           </Card>
         )}
 
-        {obsTab.startsWith("Notas vinculadas") && (
-          <Card style={{ padding: 24, borderTop: "none", borderRadius: "0 0 4px 4px" }}>
+        {obsTab === "Notas vinculadas" && (
+          <Card
+            style={{
+              padding: 24,
+              borderTop: "none",
+              borderRadius: "0 0 4px 4px",
+            }}
+          >
+            <SectionLabel>Notas de bitácora vinculadas</SectionLabel>
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
+                color: muted,
+                fontSize: 12,
+                textAlign: "center",
+                padding: 20,
               }}
             >
-              <SectionLabel>Notas de bitácora vinculadas</SectionLabel>
-              {esBorrador && puedeEnviar && (
-                <SecondaryBtn onClick={() => setShowVincularBitacora(true)}>
-                  + Vincular nota
-                </SecondaryBtn>
-              )}
+              La vinculación de bitácora se conectará en el siguiente módulo.
             </div>
-            {(selected.notasVinculadas || []).length === 0 && (
-              <div style={{ color: muted, fontSize: 12, textAlign: "center", padding: 20 }}>
-                Sin notas vinculadas
-              </div>
-            )}
-            {(selected.notasVinculadas || []).map((folioRef) => {
-              const nota = mockBitacora.find((b) => b.folio === folioRef);
-              return nota ? (
-                <div
-                  key={folioRef}
-                  style={{
-                    display: "flex",
-                    gap: 16,
-                    padding: "10px 14px",
-                    border: `1px solid ${rule}`,
-                    borderRadius: 3,
-                    marginBottom: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "JetBrains Mono",
-                      fontSize: 11.5,
-                      color: obra,
-                      fontWeight: 600,
-                      minWidth: 50,
-                    }}
-                  >
-                    {nota.folio}
-                  </span>
-                  <span style={{ fontSize: 12.5 }}>{nota.asunto}</span>
-                  <span style={{ fontSize: 11, color: muted, marginLeft: "auto" }}>
-                    {nota.fecha}
-                  </span>
-                </div>
-              ) : null;
-            })}
           </Card>
         )}
 
         {obsTab === "Historial" && (
-          <Card style={{ padding: 24, borderTop: "none", borderRadius: "0 0 4px 4px" }}>
+          <Card
+            style={{
+              padding: 24,
+              borderTop: "none",
+              borderRadius: "0 0 4px 4px",
+            }}
+          >
             <SectionLabel>Historial de cambios</SectionLabel>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <TableHeader cols={["Estado anterior", "Estado nuevo", "Fecha y hora", "Usuario"]} />
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 12.5,
+              }}
+            >
+              <TableHeader
+                cols={["Estado anterior", "Estado nuevo", "Fecha y hora", "Usuario"]}
+              />
               <tbody>
                 {(selected.historial || []).map((h, i) => (
-                  <tr key={i} style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}>
-                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                  <tr
+                    key={i}
+                    style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
+                  >
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        borderBottom: `1px solid ${rule}`,
+                      }}
+                    >
                       {h.estadoAnterior}
                     </td>
-                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        borderBottom: `1px solid ${rule}`,
+                      }}
+                    >
                       <EstadoBadge estado={h.estadoNuevo} />
                     </td>
                     <td
@@ -739,7 +902,6 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                       style={{
                         padding: "10px 14px",
                         borderBottom: `1px solid ${rule}`,
-                        fontSize: 12,
                       }}
                     >
                       {h.usuario}
@@ -748,45 +910,43 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 ))}
               </tbody>
             </table>
-            <p style={{ fontSize: 11, color: muted, marginTop: 10 }}>
-              Solo lectura. Visible para todos los roles asignados al contrato.
-            </p>
           </Card>
         )}
 
-        {/* Modals */}
         {showAddConcepto && (
           <ModalAddConcepto
+    contratoId={CONTRATO_ID}
             onClose={() => setShowAddConcepto(false)}
-            onAdd={(concepto: ConceptoEstimacion) => {
-              // api.addConcepto(selected.id, concepto)
-              setSelected((prev) =>
-                prev
-                  ? { ...prev, conceptos: [...(prev.conceptos || []), concepto] }
-                  : null
-              );
+            onAdd={async (concepto: ConceptoEstimacion) => {
+              if (!selected) return;
+
+              await estimacionesService.actualizarConceptos(selected.id, [
+                ...(selected.conceptos || []).map((c: any) => ({
+                  conceptoContratoId: c.conceptoContratoId ?? c.id ?? 1,
+                  cantidadEjecutada: c.cantEjecutada,
+                })),
+                {
+                  conceptoContratoId:
+                    (concepto as any).conceptoContratoId ??
+                    (concepto as any).id ??
+                    1,
+                  cantidadEjecutada: concepto.cantEjecutada,
+                },
+              ]);
+
               setShowAddConcepto(false);
+              await abrirEstimacion(selected.id);
+              await cargarEstimaciones();
             }}
           />
         )}
-        {showVincularBitacora && (
-          <ModalVincularBitacora
-            notas={mockBitacora}
-            vinculadas={selected.notasVinculadas || []}
-            onClose={() => setShowVincularBitacora(false)}
-            onVincular={(folios) => {
-              // api.vincularBitacora(selected.id, folios)
-              setSelected((prev) => (prev ? { ...prev, notasVinculadas: folios } : null));
-              setShowVincularBitacora(false);
-            }}
-          />
-        )}
+
         {showObservacion && (
-          <Modal title="Nueva observación" onClose={() => setShowObservacion(false)} width={420}>
-            <div style={{ marginBottom: 14 }}>
-              <SectionLabel>Referencia (concepto o general)</SectionLabel>
-              <TextInput placeholder="Ej: Concepto 05.004 o General" value="" onChange={() => {}} />
-            </div>
+          <Modal
+            title="Nueva observación"
+            onClose={() => setShowObservacion(false)}
+            width={420}
+          >
             <div style={{ marginBottom: 20 }}>
               <SectionLabel>Observación</SectionLabel>
               <TextArea
@@ -796,8 +956,12 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 rows={4}
               />
             </div>
+
             <div style={{ display: "flex", gap: 10 }}>
-              <SecondaryBtn onClick={() => setShowObservacion(false)} style={{ flex: 1 }}>
+              <SecondaryBtn
+                onClick={() => setShowObservacion(false)}
+                style={{ flex: 1 }}
+              >
                 Cancelar
               </SecondaryBtn>
               <PrimaryBtn onClick={handleNuevaObs} style={{ flex: 1 }}>
@@ -806,8 +970,13 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
             </div>
           </Modal>
         )}
+
         {showRechazo && (
-          <Modal title="Rechazar estimación" onClose={() => setShowRechazo(false)} width={420}>
+          <Modal
+            title="Rechazar estimación"
+            onClose={() => setShowRechazo(false)}
+            width={420}
+          >
             <div
               style={{
                 background: folioSoft,
@@ -821,6 +990,7 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
             >
               Se requiere un motivo antes de confirmar el rechazo.
             </div>
+
             <div style={{ marginBottom: 20 }}>
               <SectionLabel>Motivo de rechazo</SectionLabel>
               <TextArea
@@ -830,8 +1000,12 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 rows={4}
               />
             </div>
+
             <div style={{ display: "flex", gap: 10 }}>
-              <SecondaryBtn onClick={() => setShowRechazo(false)} style={{ flex: 1 }}>
+              <SecondaryBtn
+                onClick={() => setShowRechazo(false)}
+                style={{ flex: 1 }}
+              >
                 Cancelar
               </SecondaryBtn>
               <DangerBtn onClick={handleRechazar} style={{ flex: 1 }}>
@@ -840,6 +1014,7 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
             </div>
           </Modal>
         )}
+
         {showPago && (
           <Modal
             title="Registrar pago"
@@ -853,34 +1028,31 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                 <TextInput
                   placeholder="Ej: CLC-2026-08741"
                   value={datoPago.referencia}
-                  onChange={(v) => setDatoPago((p) => ({ ...p, referencia: v }))}
+                  onChange={(v) =>
+                    setDatoPago((p) => ({ ...p, referencia: v }))
+                  }
                 />
               </div>
-              <div>
-                <SectionLabel>Banco / institución</SectionLabel>
-                <TextInput
-                  placeholder="Ej: Banorte"
-                  value={datoPago.banco}
-                  onChange={(v) => setDatoPago((p) => ({ ...p, banco: v }))}
-                />
-              </div>
+
               <div>
                 <SectionLabel>Fecha de pago</SectionLabel>
                 <TextInput
-                  placeholder="DD-MM-YYYY"
+                  placeholder="YYYY-MM-DD"
                   value={datoPago.fecha}
                   onChange={(v) => setDatoPago((p) => ({ ...p, fecha: v }))}
                 />
               </div>
+
               <div>
                 <SectionLabel>Monto pagado</SectionLabel>
                 <TextInput
-                  placeholder="$0.00"
+                  placeholder="0.00"
                   value={datoPago.monto}
                   onChange={(v) => setDatoPago((p) => ({ ...p, monto: v }))}
                 />
               </div>
             </div>
+
             <div style={{ display: "flex", gap: 10 }}>
               <SecondaryBtn onClick={() => setShowPago(false)} style={{ flex: 1 }}>
                 Cancelar
@@ -888,29 +1060,50 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               <PrimaryBtn
                 onClick={handlePago}
                 style={{ flex: 1, background: pagado }}
-                disabled={
-                  !datoPago.referencia ||
-                  !datoPago.banco ||
-                  !datoPago.fecha ||
-                  !datoPago.monto
-                }
+                disabled={!datoPago.referencia || !datoPago.fecha || !datoPago.monto}
               >
                 Confirmar pago
               </PrimaryBtn>
             </div>
           </Modal>
         )}
+
         {showHistorial && (
-          <Modal title="Historial de estados" onClose={() => setShowHistorial(false)} width={560}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <TableHeader cols={["Estado anterior", "Estado nuevo", "Fecha y hora", "Usuario"]} />
+          <Modal
+            title="Historial de estados"
+            onClose={() => setShowHistorial(false)}
+            width={560}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 12.5,
+              }}
+            >
+              <TableHeader
+                cols={["Estado anterior", "Estado nuevo", "Fecha y hora", "Usuario"]}
+              />
               <tbody>
                 {(selected.historial || []).map((h, i) => (
-                  <tr key={i} style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}>
-                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                  <tr
+                    key={i}
+                    style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
+                  >
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        borderBottom: `1px solid ${rule}`,
+                      }}
+                    >
                       {h.estadoAnterior}
                     </td>
-                    <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
+                    <td
+                      style={{
+                        padding: "10px 14px",
+                        borderBottom: `1px solid ${rule}`,
+                      }}
+                    >
                       <EstadoBadge estado={h.estadoNuevo} />
                     </td>
                     <td
@@ -927,7 +1120,6 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                       style={{
                         padding: "10px 14px",
                         borderBottom: `1px solid ${rule}`,
-                        fontSize: 12,
                       }}
                     >
                       {h.usuario}
@@ -942,7 +1134,6 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
     );
   }
 
-  // Bandeja
   return (
     <div>
       <div
@@ -955,8 +1146,11 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
         }}
       >
         {puedeEnviar && (
-          <PrimaryBtn onClick={() => setShowNuevaEst(true)}>+ Nueva estimación</PrimaryBtn>
+          <PrimaryBtn onClick={() => setShowNuevaEst(true)}>
+            + Nueva estimación
+          </PrimaryBtn>
         )}
+
         <div style={{ position: "relative" }}>
           <Search
             size={13}
@@ -985,6 +1179,7 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
             }}
           />
         </div>
+
         {!puedePagar && (
           <select
             value={filtroEstado}
@@ -1000,11 +1195,14 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
               outline: "none",
             }}
           >
-            {["Todos", "Borrador", "Enviada", "Observada", "Aprobada", "Pagada"].map((o) => (
-              <option key={o}>{o}</option>
-            ))}
+            {["Todos", "Borrador", "Enviada", "Observada", "Aprobada", "Pagada"].map(
+              (o) => (
+                <option key={o}>{o}</option>
+              )
+            )}
           </select>
         )}
+
         {puedePagar && (
           <div style={{ fontSize: 11.5, color: muted }}>
             Mostrando solo estimaciones <strong>Aprobadas</strong> pendientes de pago.
@@ -1013,16 +1211,25 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
       </div>
 
       <Card style={{ overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 12.5,
+          }}
+        >
           <TableHeader cols={["N.°", "Periodo", "Monto", "Estado", "Días plazo", ""]} />
           <tbody>
             {visibles.map((e, i) => (
               <tr
                 key={e.id}
                 style={{ background: i % 2 === 1 ? "#FAF8F2" : paper2 }}
-                onMouseEnter={(el) => (el.currentTarget.style.background = obraSoft)}
+                onMouseEnter={(el) =>
+                  (el.currentTarget.style.background = obraSoft)
+                }
                 onMouseLeave={(el) =>
-                  (el.currentTarget.style.background = i % 2 === 1 ? "#FAF8F2" : paper2)
+                  (el.currentTarget.style.background =
+                    i % 2 === 1 ? "#FAF8F2" : paper2)
                 }
               >
                 <td
@@ -1060,14 +1267,16 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
                   }}
                 >
                   {e.dias ? (
-                    <span style={{ color: observado, fontWeight: 600 }}>{e.dias} ⚑</span>
+                    <span style={{ color: observado, fontWeight: 600 }}>
+                      {e.dias} ⚑
+                    </span>
                   ) : (
                     "—"
                   )}
                 </td>
                 <td style={{ padding: "10px 14px", borderBottom: `1px solid ${rule}` }}>
                   <button
-                    onClick={() => setSelected(e)}
+                    onClick={() => abrirEstimacion(e.id)}
                     style={{
                       fontSize: 11.5,
                       color: obra,
@@ -1090,31 +1299,22 @@ export function TabEstimaciones({ rol }: TabEstimacionesProps) {
 
       {showNuevaEst && (
         <ModalNuevaEstimacion
-          onClose={() => setShowNuevaEst(false)}
-          onCrear={(data) => {
-            const nueva: Estimacion = {
-              id: Math.max(...estimaciones.map((e) => e.id)) + 1,
-              periodo: data.periodo,
-              monto: 0,
-              estado: "Borrador",
-              conceptos: [],
-              notasVinculadas: [],
-              observaciones: [],
-              historial: [
-                {
-                  estadoAnterior: "—",
-                  estadoNuevo: "Borrador",
-                  fecha: new Date().toLocaleString("es-MX"),
-                  usuario: "Usuario actual",
-                },
-              ],
-            };
-            // api.crearEstimacion(mockContrato.id, data)
-            setEstimaciones((prev) => [nueva, ...prev]);
-            setShowNuevaEst(false);
-            setSelected(nueva);
-          }}
-        />
+  contrato={{
+    id: CONTRATO_ID,
+    numeroContrato: `Contrato ${CONTRATO_ID}`,
+  }}
+  onClose={() => setShowNuevaEst(false)}
+  onCrear={async (data) => {
+    const nueva = await estimacionesService.crear({
+      contratoId: CONTRATO_ID,
+      periodo: data.periodo,
+    });
+
+    setShowNuevaEst(false);
+    await cargarEstimaciones();
+    await abrirEstimacion(nueva.id);
+  }}
+/>
       )}
     </div>
   );

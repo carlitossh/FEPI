@@ -4,15 +4,22 @@ import { SectionLabel } from "../../../components/SectionLabel";
 import { TextInput } from "../../../components/TextInput";
 import { SecondaryBtn } from "../../../components/SecondaryBtn";
 import { PrimaryBtn } from "../../../components/PrimaryBtn";
-import { mockContrato } from "../../dashboard/mock/mockContrato";
 import { obraSoft, obra } from "../../../styles/theme";
 
 interface ModalNuevaEstimacionProps {
+  contrato: {
+    id: number;
+    numeroContrato: string;
+  };
   onClose: () => void;
   onCrear: (data: { periodo: string }) => void;
 }
 
-export function ModalNuevaEstimacion({ onClose, onCrear }: ModalNuevaEstimacionProps) {
+export function ModalNuevaEstimacion({
+  contrato,
+  onClose,
+  onCrear,
+}: ModalNuevaEstimacionProps) {
   const [periodo, setPeriodo] = useState("");
 
   return (
@@ -24,8 +31,13 @@ export function ModalNuevaEstimacion({ onClose, onCrear }: ModalNuevaEstimacionP
     >
       <div style={{ marginBottom: 16 }}>
         <SectionLabel>Periodo de la estimación</SectionLabel>
-        <TextInput placeholder="Ej: Jul 2026" value={periodo} onChange={setPeriodo} />
+        <TextInput
+          placeholder="Ej: 2026-07"
+          value={periodo}
+          onChange={setPeriodo}
+        />
       </div>
+
       <div
         style={{
           background: obraSoft,
@@ -36,13 +48,15 @@ export function ModalNuevaEstimacion({ onClose, onCrear }: ModalNuevaEstimacionP
           fontSize: 12.5,
         }}
       >
-        <strong>Datos de carátula precargados:</strong> Contrato {mockContrato.id} ·{" "}
-        {mockContrato.descripcion}
+        <strong>Datos de carátula precargados:</strong> Contrato{" "}
+        {contrato.numeroContrato}
       </div>
+
       <div style={{ display: "flex", gap: 10 }}>
         <SecondaryBtn onClick={onClose} style={{ flex: 1 }}>
           Cancelar
         </SecondaryBtn>
+
         <PrimaryBtn
           onClick={() => onCrear({ periodo })}
           disabled={!periodo.trim()}

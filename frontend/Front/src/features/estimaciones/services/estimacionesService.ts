@@ -1,76 +1,78 @@
-const API_BASE = "/api";
+const API = "http://localhost:5000/api";
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API}${url}`, options);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  return response.json();
+}
 
 export const estimacionesService = {
-  getEstimaciones: (contratoId: string) =>
-    fetch(`${API_BASE}/contratos/${contratoId}/estimaciones`),
+  listarPorContrato: (contratoId: number) =>
+    request<any[]>(`/estimaciones/contrato/${contratoId}`),
 
-  getEstimacion: (id: number) =>
-    fetch(`${API_BASE}/estimaciones/${id}`),
+  obtenerDetalle: (id: number) =>
+    request<any>(`/estimaciones/${id}`),
 
-  crearEstimacion: (contratoId: string, data: unknown) =>
-    fetch(`${API_BASE}/contratos/${contratoId}/estimaciones`, {
+  crear: (data: { contratoId: number; periodo: string }) =>
+    request<any>(`/estimaciones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
 
-  actualizarEstimacion: (id: number, data: unknown) =>
-    fetch(`${API_BASE}/estimaciones/${id}`, {
-      method: "PATCH",
+  actualizarConceptos: (
+    id: number,
+    conceptos: { conceptoContratoId: number; cantidadEjecutada: number }[]
+  ) =>
+    request<void>(`/estimaciones/${id}/conceptos`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ conceptos }),
     }),
 
-  enviarEstimacion: (id: number) =>
-    fetch(`${API_BASE}/estimaciones/${id}/enviar`, { method: "POST" }),
-
-  aprobarEstimacion: (id: number) =>
-    fetch(`${API_BASE}/estimaciones/${id}/aprobar`, { method: "POST" }),
-
-  rechazarEstimacion: (id: number, motivo: string) =>
-    fetch(`${API_BASE}/estimaciones/${id}/rechazar`, {
+  enviar: (id: number, usuarioId: number) =>
+    request<void>(`/estimaciones/${id}/enviar?usuarioId=${usuarioId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ motivo }),
     }),
 
-  observarEstimacion: (id: number) =>
-    fetch(`${API_BASE}/estimaciones/${id}/observar`, { method: "POST" }),
-
-  registrarPago: (id: number, data: unknown) =>
-    fetch(`${API_BASE}/estimaciones/${id}/pago`, {
+  cambiarEstado: (
+    id: number,
+    data: { nuevoEstado: number; usuarioId: number; comentario?: string }
+  ) =>
+    request<void>(`/estimaciones/${id}/estado`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
 
-  addObservacion: (id: number, data: unknown) =>
-    fetch(`${API_BASE}/estimaciones/${id}/observaciones`, {
+  agregarObservacion: (id: number, texto: string, usuarioId: number) =>
+    request<any>(`/estimaciones/${id}/observaciones?usuarioId=${usuarioId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
+    }),
+
+  registrarPago: (
+    id: number,
+    data: { fechaPago: string; referenciaBancaria: string; montoPagado: number }
+  ) =>
+    request<void>(`/estimaciones/${id}/pago`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
 
-  addConcepto: (id: number, data: unknown) =>
-    fetch(`${API_BASE}/estimaciones/${id}/conceptos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }),
+  obtenerHistorial: (id: number) =>
+    request<any[]>(`/estimaciones/${id}/historial`),
 
-  getHistorial: (id: number) =>
-    fetch(`${API_BASE}/estimaciones/${id}/historial`),
-
-  adjuntarDoc: (id: number, formData: FormData) =>
-    fetch(`${API_BASE}/estimaciones/${id}/documentos`, {
-      method: "POST",
-      body: formData,
-    }),
-
-  vincularBitacora: (id: number, folios: string[]) =>
-    fetch(`${API_BASE}/estimaciones/${id}/bitacora`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folios }),
-    }),
+  getConceptosContrato: (contratoId: number) =>
+    request<any[]>(`/contratos/${contratoId}/conceptos`),
 };

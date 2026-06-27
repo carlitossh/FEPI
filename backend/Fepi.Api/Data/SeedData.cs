@@ -192,7 +192,6 @@ public static class SeedData
                 UnidadMedida = "m²",
                 CantidadContratada = 1200m,
                 PrecioUnitario = 45m,
-                Importe = 1200m * 45m
             },
             new()
             {
@@ -202,7 +201,6 @@ public static class SeedData
                 UnidadMedida = "m³",
                 CantidadContratada = 450m,
                 PrecioUnitario = 320m,
-                Importe = 450m * 320m
             },
             new()
             {
@@ -212,7 +210,6 @@ public static class SeedData
                 UnidadMedida = "m³",
                 CantidadContratada = 300m,
                 PrecioUnitario = 4050m,
-                Importe = 300m * 4050m
             },
             new()
             {
@@ -222,7 +219,6 @@ public static class SeedData
                 UnidadMedida = "ml",
                 CantidadContratada = 180m,
                 PrecioUnitario = 6185m,
-                Importe = 180m * 6185m
             },
             new()
             {
@@ -232,7 +228,6 @@ public static class SeedData
                 UnidadMedida = "pza",
                 CantidadContratada = 90m,
                 PrecioUnitario = 5300m,
-                Importe = 90m * 5300m
             },
             new()
             {
@@ -242,7 +237,6 @@ public static class SeedData
                 UnidadMedida = "m²",
                 CantidadContratada = 850m,
                 PrecioUnitario = 1903m,
-                Importe = 850m * 1903m
             }
         };
 

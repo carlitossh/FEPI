@@ -51,7 +51,6 @@ public class ContratoService : IContratoService
                 UnidadMedida = c.UnidadMedida,
                 CantidadContratada = c.CantidadContratada,
                 PrecioUnitario = c.PrecioUnitario,
-                Importe = c.CantidadContratada * c.PrecioUnitario
             });
         }
 
@@ -230,7 +229,6 @@ public class ContratoService : IContratoService
             existente.UnidadMedida = dto.UnidadMedida;
             existente.CantidadContratada = dto.CantidadContratada;
             existente.PrecioUnitario = dto.PrecioUnitario;
-            existente.Importe = dto.CantidadContratada * dto.PrecioUnitario;
         }
         else
         {
@@ -242,7 +240,6 @@ public class ContratoService : IContratoService
                 UnidadMedida = dto.UnidadMedida,
                 CantidadContratada = dto.CantidadContratada,
                 PrecioUnitario = dto.PrecioUnitario,
-                Importe = dto.CantidadContratada * dto.PrecioUnitario
             });
         }
 

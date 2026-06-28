@@ -9,6 +9,7 @@ public class BitacoraFirma
     public Usuario? Usuario { get; set; }
     public RolSistema RolFirmante { get; set; }
     public bool EsEmisor { get; set; }
+    public int OrdenFirma { get; set; }
     public bool Firmado { get; set; }
     public DateTime? FechaFirma { get; set; }
 }

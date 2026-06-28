@@ -90,8 +90,8 @@ public class AvanceService : IAvanceService
                 .Where(a => a.Fecha.ToString("yyyy-MM") == p.Periodo)
                 .Sum(a => a.CantidadEjecutada * (a.ConceptoContrato?.PrecioUnitario ?? 0));
 
-            var pctRealPeriodo = contrato.MontoContratado > 0
-                ? (importeRealPeriodo / contrato.MontoContratado) * 100
+            var pctRealPeriodo = contrato.ImporteTotal > 0
+                ? (importeRealPeriodo / contrato.ImporteTotal) * 100
                 : 0;
 
             acumuladoReal += pctRealPeriodo;
@@ -131,10 +131,10 @@ public class AvanceService : IAvanceService
                     e.Estado == EstadoEstimacion.AprobadaResidencia)
                 .Include(e => e.Conceptos)
                 .SelectMany(e => e.Conceptos)
-                .SumAsync(x => x.Importe, ct);
+                .SumAsync(x => x.ImporteTotal, ct);
 
-            var avanceFinanciero = contrato.MontoContratado > 0
-                ? (montoEjercido / contrato.MontoContratado) * 100
+            var avanceFinanciero = contrato.ImporteTotal > 0
+                ? (montoEjercido / contrato.ImporteTotal) * 100
                 : 0;
 
             resultado.Add(new AvanceResumenContratoDto(

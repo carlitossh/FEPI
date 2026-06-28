@@ -13,6 +13,13 @@ public class UsuariosController : ControllerBase
     public UsuariosController(IUsuarioService service)
         => _service = service;
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<UsuarioDto>>>> Listar(CancellationToken ct)
+    {
+        var usuarios = await _service.ListarAsync(ct);
+        return Ok(new ApiResponse<List<UsuarioDto>>(true, "OK", usuarios));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<UsuarioDto>> ObtenerPorId(
         int id,
@@ -20,6 +27,16 @@ public class UsuariosController : ControllerBase
     {
         var usuario = await _service.ObtenerPorIdAsync(id, ct);
         return usuario is null ? NotFound() : Ok(usuario);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<ApiResponse<UsuarioDto>>> Crear(
+        [FromBody] CrearUsuarioRequest dto,
+        CancellationToken ct)
+    {
+        var usuario = await _service.CrearAsync(dto, ct);
+        return CreatedAtAction(nameof(ObtenerPorId), new { id = usuario.Id },
+            new ApiResponse<UsuarioDto>(true, "Usuario creado correctamente.", usuario));
     }
 
     [HttpGet("{id:int}/roles")]

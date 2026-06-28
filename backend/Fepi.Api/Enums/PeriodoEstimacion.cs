@@ -1,5 +1,5 @@
 namespace Fepi.Api.Models;
-public enum PeriodoEstimacion
+public enum TipoPeriodoEstimacion
 {
     Mensual = 1,
     Quincenal = 2

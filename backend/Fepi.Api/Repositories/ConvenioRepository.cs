@@ -24,7 +24,7 @@ public class ConvenioRepository : GenericRepository<ConvenioModificatorio>, ICon
     {
         return await _context.ConveniosModificatorios
             .Where(c => c.ContratoId == contratoId)
-            .OrderByDescending(c => c.FechaSolicitud)
+            .OrderByDescending(c => c.FechaEmision)
             .ToListAsync(ct);
     }
 }

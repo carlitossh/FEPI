@@ -4,5 +4,6 @@ public enum TipoNotaBitacora
     Apertura = 1,
     Nota = 2,
     Minuta = 3,
-    Incidencia = 4
+    Incidencia = 4,
+    CierreContrato = 5
 }

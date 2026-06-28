@@ -30,7 +30,7 @@ public class DashboardService : IDashboardService
                 c.Estimacion != null &&
                 c.Estimacion.ContratoId == contratoId &&
                 c.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
-            .SumAsync(c => c.Importe, ct);
+            .SumAsync(c => c.ImporteTotal, ct);
 
         var montoPagadoTotal = await _context.EstimacionPagos
             .Where(p => p.Estimacion != null && p.Estimacion.ContratoId == contratoId)
@@ -39,12 +39,11 @@ public class DashboardService : IDashboardService
         var estimacionesPendientes = await _context.Estimaciones
             .CountAsync(e => e.ContratoId == contratoId &&
                 (e.Estado == EstadoEstimacion.Enviada ||
-                 e.Estado == EstadoEstimacion.ObservadaSupervision ||
+                 e.Estado == EstadoEstimacion.Observada ||
                  e.Estado == EstadoEstimacion.AprobadaSupervision), ct);
 
         var conveniosActivos = await _context.ConveniosModificatorios
-            .CountAsync(c => c.ContratoId == contratoId &&
-                c.Estado != EstadoConvenio.Aprobada && c.Estado != EstadoConvenio.Rechazada, ct);
+            .CountAsync(c => c.ContratoId == contratoId && c.Estado != EstadoConvenio.Aplicado, ct);
 
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
         var garantiasPorVencer = await _context.Garantias
@@ -56,7 +55,7 @@ public class DashboardService : IDashboardService
         return new DashboardContratoDto(
             contratoId, contrato.NumeroContrato,
             curva.PorcentajeCumplimientoActual, avanceProgramado,
-            montoEjercido, contrato.MontoContratado,
+            montoEjercido, contrato.ImporteTotal,
             estimacionesPendientes, conveniosActivos, garantiasPorVencer,
             montoPagadoTotal);
     }
@@ -67,8 +66,8 @@ public class DashboardService : IDashboardService
             .FirstOrDefaultAsync(c => c.Id == contratoId, ct)
             ?? throw new InvalidOperationException("Contrato no encontrado.");
 
-        var montoContratado = contrato.MontoContratado;
-        if (montoContratado == 0)
+        var importeTotal = contrato.ImporteTotal;
+        if (importeTotal == 0)
             return new CurvaFinancieraDto([], 0, 0);
 
         var estimadoPorPeriodo = await _context.EstimacionConceptos
@@ -76,7 +75,7 @@ public class DashboardService : IDashboardService
                         c.Estimacion.ContratoId == contratoId &&
                         c.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
             .GroupBy(c => c.Estimacion!.Periodo)
-            .Select(g => new { Periodo = g.Key, Monto = g.Sum(c => c.Importe) })
+            .Select(g => new { Periodo = g.Key, Monto = g.Sum(c => c.ImporteTotal) })
             .ToListAsync(ct);
 
         var pagosBrutos = await _context.EstimacionPagos
@@ -106,8 +105,8 @@ public class DashboardService : IDashboardService
             cumPag += pagadoPorPeriodo.GetValueOrDefault(periodo, 0);
             puntos.Add(new CurvaFinancieraPuntoDto(
                 periodo,
-                Math.Round(cumEst / montoContratado * 100, 2),
-                Math.Round(cumPag / montoContratado * 100, 2)
+                Math.Round(cumEst / importeTotal * 100, 2),
+                Math.Round(cumPag / importeTotal * 100, 2)
             ));
         }
 
@@ -168,14 +167,14 @@ public class DashboardService : IDashboardService
         }
 
         var conveniosPendientes = await _context.ConveniosModificatorios
-            .Where(c => c.ContratoId == contratoId && c.Estado == EstadoConvenio.PromovidaResidencia)
-            .OrderBy(c => c.FechaSolicitud)
+            .Where(c => c.ContratoId == contratoId && c.Estado == EstadoConvenio.AprobadoResidencia)
+            .OrderBy(c => c.FechaEmision)
             .Take(5)
             .ToListAsync(ct);
 
         foreach (var c in conveniosPendientes)
         {
-            var limite = DateOnly.FromDateTime(c.FechaSolicitud.AddDays(15));
+            var limite = DateOnly.FromDateTime(c.FechaEmision.AddDays(15));
             var dias = limite.DayNumber - hoy.DayNumber;
             resultado.Add(new VencimientoDto(
                 "Convenio",
@@ -234,11 +233,11 @@ public class DashboardService : IDashboardService
             estimaciones.Count,
             estimaciones.Count(e => e.Estado == EstadoEstimacion.Borrador),
             estimaciones.Count(e => e.Estado == EstadoEstimacion.Enviada),
-            estimaciones.Count(e => e.Estado == EstadoEstimacion.ObservadaSupervision),
+            estimaciones.Count(e => e.Estado == EstadoEstimacion.Observada),
             estimaciones.Count(e => e.Estado == EstadoEstimacion.AprobadaSupervision),
-            estimaciones.Count(e => e.Estado == EstadoEstimacion.RechazadaResidencia),
+            estimaciones.Count(e => e.Estado == EstadoEstimacion.Rechazada),
             estimaciones.Count(e => e.Estado == EstadoEstimacion.AprobadaResidencia),
-            estimaciones.Count(e => e.Estado == EstadoEstimacion.Cancelada),
+            estimaciones.Count(e => e.Estado == EstadoEstimacion.Pagada),
             estimaciones.Count(e => e.EstadoPago == EstadoPagoEstimacion.SinPago),
             estimaciones.Count(e => e.EstadoPago == EstadoPagoEstimacion.PagoParcial),
             estimaciones.Count(e => e.EstadoPago == EstadoPagoEstimacion.Pagada)
@@ -251,16 +250,16 @@ public class DashboardService : IDashboardService
             .Where(c => c.ContratoId == contratoId)
             .ToListAsync(ct);
 
-        var aprobados = convenios.Where(c => c.Estado == EstadoConvenio.Aprobada).ToList();
+        var aplicados = convenios.Where(c => c.Estado == EstadoConvenio.Aplicado).ToList();
 
         return new ConveniosResumenDto(
             convenios.Count,
-            convenios.Count(c => c.Estado != EstadoConvenio.Aprobada && c.Estado != EstadoConvenio.Rechazada),
-            aprobados.Count,
-            convenios.Count(c => c.Estado == EstadoConvenio.Rechazada),
-            convenios.Count(c => c.Estado == EstadoConvenio.Solicitada || c.Estado == EstadoConvenio.RevisadaSupervision),
-            aprobados.Sum(c => c.MontoSolicitado ?? 0),
-            aprobados.Sum(c => c.PlazoDiasSolicitado ?? 0)
+            convenios.Count(c => c.Estado != EstadoConvenio.Aplicado),
+            aplicados.Count,
+            0,
+            convenios.Count(c => c.Estado == EstadoConvenio.Revisado || c.Estado == EstadoConvenio.AprobadoSupervision),
+            aplicados.Sum(c => c.MontoSolicitado ?? 0),
+            aplicados.Sum(c => c.PlazoDiasSolicitado ?? 0)
         );
     }
 
@@ -319,27 +318,27 @@ public class DashboardService : IDashboardService
         {
             resultado.Add(new ActividadRecienteDto(
                 e.FechaCreacion, "Estimaciones",
-                $"Est. #{e.NumeroCorrelativo} ({e.Periodo}) — {EstadoLabel(e.Estado)}",
-                e.UsuarioEnvio?.Nombre, $"Est. {e.NumeroCorrelativo}"
+                $"Est. #{e.NumeroEstimacion} ({e.Periodo}) — {EstadoLabel(e.Estado)}",
+                e.UsuarioEnvio?.Nombre, $"Est. {e.NumeroEstimacion}"
             ));
 
             if (e.FechaAprobacionResidencia.HasValue)
                 resultado.Add(new ActividadRecienteDto(
                     e.FechaAprobacionResidencia.Value, "Estimaciones",
-                    $"Est. #{e.NumeroCorrelativo} aprobada por residencia",
-                    null, $"Est. {e.NumeroCorrelativo}"
+                    $"Est. #{e.NumeroEstimacion} aprobada por residencia",
+                    null, $"Est. {e.NumeroEstimacion}"
                 ));
         }
 
         var convenios = await _context.ConveniosModificatorios
             .Include(c => c.Solicitante)
             .Where(c => c.ContratoId == contratoId)
-            .OrderByDescending(c => c.FechaSolicitud)
+            .OrderByDescending(c => c.FechaEmision)
             .Take(5)
             .ToListAsync(ct);
 
         resultado.AddRange(convenios.Select(c => new ActividadRecienteDto(
-            c.FechaSolicitud, "Convenios",
+            c.FechaEmision, "Convenios",
             $"Convenio #{c.Id} ({c.Tipo}) — {EstadoConvenioLabel(c.Estado)}",
             c.Solicitante?.Nombre, $"Conv. {c.Id}"
         )));
@@ -349,23 +348,22 @@ public class DashboardService : IDashboardService
 
     private static string EstadoLabel(EstadoEstimacion e) => e switch
     {
-        EstadoEstimacion.Borrador              => "Borrador",
-        EstadoEstimacion.Enviada               => "Enviada",
-        EstadoEstimacion.ObservadaSupervision  => "Observada por supervisión",
-        EstadoEstimacion.AprobadaSupervision   => "Aprobada por supervisión",
-        EstadoEstimacion.RechazadaResidencia   => "Rechazada por residencia",
-        EstadoEstimacion.AprobadaResidencia    => "Aprobada por residencia",
-        EstadoEstimacion.Cancelada             => "Cancelada",
-        _                                      => e.ToString()
+        EstadoEstimacion.Borrador             => "Borrador",
+        EstadoEstimacion.Enviada              => "Enviada",
+        EstadoEstimacion.Observada            => "Observada",
+        EstadoEstimacion.AprobadaSupervision  => "Aprobada por supervisión",
+        EstadoEstimacion.Rechazada            => "Rechazada",
+        EstadoEstimacion.AprobadaResidencia   => "Aprobada por residencia",
+        EstadoEstimacion.Pagada               => "Pagada",
+        _                                     => e.ToString()
     };
 
     private static string EstadoConvenioLabel(EstadoConvenio e) => e switch
     {
-        EstadoConvenio.Solicitada           => "Solicitado",
-        EstadoConvenio.RevisadaSupervision  => "Revisado por supervisión",
-        EstadoConvenio.PromovidaResidencia  => "Promovido por residencia",
-        EstadoConvenio.Aprobada             => "Aprobado",
-        EstadoConvenio.Rechazada            => "Rechazado",
-        _                                   => e.ToString()
+        EstadoConvenio.Revisado            => "En revisión",
+        EstadoConvenio.AprobadoSupervision => "Aprobado por supervisión",
+        EstadoConvenio.AprobadoResidencia  => "Aprobado por residencia",
+        EstadoConvenio.Aplicado            => "Aplicado",
+        _                                  => e.ToString()
     };
 }

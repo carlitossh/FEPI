@@ -2,7 +2,7 @@ using Fepi.Api.Models;
 
 namespace Fepi.Api.DTOs;
 
-public record CrearEstimacionDto(int ContratoId, string Periodo);
+public record CrearEstimacionDto(int ContratoId, int PeriodoContratoId);
 public record EstimacionConceptoInputDto(int ConceptoContratoId, decimal CantidadEjecutada);
 public record ActualizarConceptosEstimacionDto(List<EstimacionConceptoInputDto> Conceptos);
 

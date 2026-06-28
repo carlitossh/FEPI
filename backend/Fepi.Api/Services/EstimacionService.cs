@@ -21,20 +21,30 @@ public class EstimacionService : IEstimacionService
 
     public async Task<EstimacionResumenDto> CrearAsync(CrearEstimacionDto dto, CancellationToken ct = default)
     {
+        var periodo = await _context.PeriodosContrato
+            .FirstOrDefaultAsync(p => p.Id == dto.PeriodoContratoId && p.ContratoId == dto.ContratoId, ct)
+            ?? throw new InvalidOperationException("Periodo de contrato no encontrado para este contrato.");
+
+        var duplicado = await _context.Estimaciones
+            .AnyAsync(e => e.ContratoId == dto.ContratoId && e.PeriodoContratoId == dto.PeriodoContratoId, ct);
+        if (duplicado)
+            throw new InvalidOperationException($"Ya existe una estimación para el periodo {periodo.FechaInicio:yyyy-MM} en este contrato.");
+
         var ultimoCorrelativo = await _estimacionRepo.GetUltimoCorrelativoAsync(dto.ContratoId, ct);
 
         var estimacion = new Estimacion
         {
             ContratoId = dto.ContratoId,
-            NumeroCorrelativo = ultimoCorrelativo + 1,
-            Periodo = dto.Periodo,
+            PeriodoContratoId = dto.PeriodoContratoId,
+            NumeroEstimacion = ultimoCorrelativo + 1,
+            Periodo = $"{periodo.FechaInicio:yyyy-MM}",
             Estado = EstadoEstimacion.Borrador
         };
 
         await _estimacionRepo.AddAsync(estimacion, ct);
         await _estimacionRepo.SaveChangesAsync(ct);
 
-        return new EstimacionResumenDto(estimacion.Id, estimacion.NumeroCorrelativo, estimacion.Periodo,
+        return new EstimacionResumenDto(estimacion.Id, estimacion.NumeroEstimacion, estimacion.Periodo,
             estimacion.Estado, estimacion.EstadoPago, 0, 0, 0);
     }
 
@@ -43,9 +53,9 @@ public class EstimacionService : IEstimacionService
         var estimaciones = await _estimacionRepo.GetByContratoAsync(contratoId, ct);
         return estimaciones.Select(e =>
         {
-            var montoEst = e.Conceptos.Sum(c => c.Importe);
+            var montoEst = e.Conceptos.Sum(c => c.ImporteTotal);
             return new EstimacionResumenDto(
-                e.Id, e.NumeroCorrelativo, e.Periodo,
+                e.Id, e.NumeroEstimacion, e.Periodo,
                 e.Estado, e.EstadoPago,
                 montoEst, e.MontoPagadoAcumulado, montoEst - e.MontoPagadoAcumulado);
         }).ToList();
@@ -57,23 +67,23 @@ public class EstimacionService : IEstimacionService
             ?? throw new InvalidOperationException("Estimación no encontrada.");
 
         var montoAcumulado = await _context.Estimaciones
-            .Where(e => e.ContratoId == estimacion.ContratoId &&
-                        e.Estado == EstadoEstimacion.AprobadaResidencia &&
-                        e.Id != estimacionId)
+            .Where(e => e.ContratoId == estimacion.ContratoId
+                && e.Estado == EstadoEstimacion.AprobadaResidencia
+                && e.Id != estimacionId)
             .Include(e => e.Conceptos)
             .SelectMany(e => e.Conceptos)
-            .SumAsync(c => c.Importe, ct);
+            .SumAsync(c => c.ImporteTotal, ct);
 
         var pagos = await _context.EstimacionPagos
             .Where(p => p.EstimacionId == estimacionId)
             .OrderBy(p => p.FechaRegistro)
             .ToListAsync(ct);
 
-        var montoContratado = estimacion.Contrato!.MontoContratado;
-        var montoEstimado = estimacion.Conceptos.Sum(c => c.Importe);
+        var montoContratado = estimacion.Contrato!.ImporteTotal;
+        var montoEstimado = estimacion.Conceptos.Sum(c => c.ImporteTotal);
 
         return new EstimacionDetalleDto(
-            estimacion.Id, estimacion.ContratoId, estimacion.NumeroCorrelativo, estimacion.Periodo,
+            estimacion.Id, estimacion.ContratoId, estimacion.NumeroEstimacion, estimacion.Periodo,
             estimacion.Estado, estimacion.EstadoPago,
             montoEstimado, montoContratado, montoAcumulado, montoContratado - montoAcumulado,
             estimacion.MontoPagadoAcumulado,
@@ -81,7 +91,7 @@ public class EstimacionService : IEstimacionService
             estimacion.FechaAprobacionResidencia, estimacion.UsuarioAprobacionResidenciaId,
             estimacion.Conceptos.Select(c => new EstimacionConceptoDetalleDto(
                 c.ConceptoContrato!.Clave, c.ConceptoContrato.Descripcion,
-                c.CantidadEjecutada, c.ConceptoContrato.PrecioUnitario, c.Importe)).ToList(),
+                c.CantidadEjecutadaPeriodo, c.PrecioUnitarioActual, c.ImporteTotal)).ToList(),
             estimacion.NotasVinculadas.Select(n => $"Folio {n.NotaBitacora!.Folio} — {n.NotaBitacora.Asunto}").ToList(),
             estimacion.Observaciones.Select(o => new ObservacionDto(o.Id, o.Texto, o.FechaCreacion, o.UsuarioId)).ToList(),
             pagos.Select(p => new PagoEstimacionDto(p.Id, p.FechaPago, p.ReferenciaBancaria, p.MontoPagado, p.UsuarioRegistroId, p.FechaRegistro)).ToList()
@@ -90,22 +100,46 @@ public class EstimacionService : IEstimacionService
 
     public async Task ActualizarConceptosAsync(int estimacionId, ActualizarConceptosEstimacionDto dto, CancellationToken ct = default)
     {
-        var estimacion = await _context.Estimaciones.Include(e => e.Conceptos).FirstOrDefaultAsync(e => e.Id == estimacionId, ct)
+        var estimacion = await _context.Estimaciones
+            .Include(e => e.Conceptos)
+            .FirstOrDefaultAsync(e => e.Id == estimacionId, ct)
             ?? throw new InvalidOperationException("Estimación no encontrada.");
+
+        if (estimacion.Estado != EstadoEstimacion.Borrador)
+            throw new InvalidOperationException("Solo se pueden editar conceptos en estimaciones en estado Borrador.");
 
         _context.EstimacionConceptos.RemoveRange(estimacion.Conceptos);
 
         foreach (var item in dto.Conceptos)
         {
-            var conceptoContrato = await _context.ConceptosContrato.FindAsync(new object[] { item.ConceptoContratoId }, ct)
-                ?? throw new InvalidOperationException($"Concepto de catálogo {item.ConceptoContratoId} no encontrado.");
+            var conceptoContrato = await _context.ConceptosContrato
+                .FindAsync(new object[] { item.ConceptoContratoId }, ct)
+                ?? throw new InvalidOperationException($"Concepto {item.ConceptoContratoId} no encontrado.");
+
+            // Calcular acumulados de estimaciones aprobadas anteriores
+            var cantidadAcumuladaAnterior = await _context.EstimacionConceptos
+                .Where(ec => ec.ConceptoContratoId == item.ConceptoContratoId
+                    && ec.Estimacion!.Estado == EstadoEstimacion.AprobadaResidencia)
+                .SumAsync(ec => ec.CantidadEjecutadaPeriodo, ct);
+
+            var cantidadEjecutada = item.CantidadEjecutada;
+            var precioUnitario = conceptoContrato.PrecioUnitario;
+
+            // Validar que no supere la cantidad contratada vigente
+            if (cantidadAcumuladaAnterior + cantidadEjecutada > conceptoContrato.CantidadContratada)
+                throw new InvalidOperationException(
+                    $"El concepto {conceptoContrato.Clave} supera la cantidad contratada vigente.");
 
             estimacion.Conceptos.Add(new EstimacionConcepto
             {
                 EstimacionId = estimacionId,
                 ConceptoContratoId = item.ConceptoContratoId,
-                CantidadEjecutada = item.CantidadEjecutada,
-                Importe = item.CantidadEjecutada * conceptoContrato.PrecioUnitario
+                CantidadEjecutadaPeriodo = cantidadEjecutada,
+                PrecioUnitarioActual = precioUnitario,
+                ImporteTotal = cantidadEjecutada * precioUnitario,
+                CantidadAcumuladaAnterior = cantidadAcumuladaAnterior,
+                CantidadAcumuladaActual = cantidadAcumuladaAnterior + cantidadEjecutada,
+                CantidadPorEjecutar = conceptoContrato.CantidadContratada - (cantidadAcumuladaAnterior + cantidadEjecutada)
             });
         }
 
@@ -131,8 +165,8 @@ public class EstimacionService : IEstimacionService
         var estimacion = await _estimacionRepo.GetByIdAsync(estimacionId, ct)
             ?? throw new InvalidOperationException("Estimación no encontrada.");
 
-        if (estimacion.Estado != EstadoEstimacion.Borrador && estimacion.Estado != EstadoEstimacion.ObservadaSupervision)
-            throw new InvalidOperationException($"Solo se puede enviar una estimación en estado Borrador u ObservadaSupervision. Estado actual: {estimacion.Estado}.");
+        if (estimacion.Estado != EstadoEstimacion.Borrador && estimacion.Estado != EstadoEstimacion.Observada)
+            throw new InvalidOperationException($"Solo se puede enviar una estimación en estado Borrador u Observada. Estado actual: {estimacion.Estado}.");
 
         var estadoAnterior = estimacion.Estado;
         estimacion.Estado = EstadoEstimacion.Enviada;
@@ -152,11 +186,28 @@ public class EstimacionService : IEstimacionService
 
         await _alertaService.EmitirAsync(estimacion.ContratoId, TipoAlerta.EstimacionPlazoRevision, estimacion.Id,
             nameof(Estimacion), RolSistema.SupervisorExterno,
-            $"Estimación N.° {estimacion.NumeroCorrelativo} enviada para revisión de supervisión.", ct);
+            $"Estimación N.° {estimacion.NumeroEstimacion} enviada para revisión de supervisión.", ct);
     }
 
     public async Task<ObservacionDto> AgregarObservacionAsync(int estimacionId, CrearObservacionDto dto, int usuarioId, CancellationToken ct = default)
     {
+        var estimacion = await _estimacionRepo.GetByIdAsync(estimacionId, ct)
+            ?? throw new InvalidOperationException("Estimación no encontrada.");
+
+        // Al agregar observación, pasar a estado Observada
+        if (estimacion.Estado == EstadoEstimacion.Enviada)
+        {
+            estimacion.Estado = EstadoEstimacion.Observada;
+            _context.EstimacionHistoriales.Add(new EstimacionHistorial
+            {
+                EstimacionId = estimacionId,
+                EstadoAnterior = EstadoEstimacion.Enviada,
+                EstadoNuevo = EstadoEstimacion.Observada,
+                Fecha = DateTime.UtcNow,
+                UsuarioId = usuarioId
+            });
+        }
+
         var observacion = new EstimacionObservacion
         {
             EstimacionId = estimacionId,
@@ -179,17 +230,19 @@ public class EstimacionService : IEstimacionService
 
         bool transicionValida = (from, to) switch
         {
-            (EstadoEstimacion.Enviada, EstadoEstimacion.ObservadaSupervision) => true,
+            (EstadoEstimacion.Enviada, EstadoEstimacion.Observada) => true,
             (EstadoEstimacion.Enviada, EstadoEstimacion.AprobadaSupervision) => true,
+            (EstadoEstimacion.Observada, EstadoEstimacion.Rechazada) => true,
             (EstadoEstimacion.AprobadaSupervision, EstadoEstimacion.AprobadaResidencia) => true,
-            (EstadoEstimacion.AprobadaSupervision, EstadoEstimacion.RechazadaResidencia) => true,
+            (EstadoEstimacion.AprobadaSupervision, EstadoEstimacion.Rechazada) => true,
+            (EstadoEstimacion.AprobadaResidencia, EstadoEstimacion.Pagada) => true,
             _ => false
         };
 
         if (!transicionValida)
             throw new InvalidOperationException($"Transición no permitida: {from} → {to}.");
 
-        if (to == EstadoEstimacion.RechazadaResidencia && string.IsNullOrWhiteSpace(dto.Comentario))
+        if (to == EstadoEstimacion.Rechazada && string.IsNullOrWhiteSpace(dto.Comentario))
             throw new InvalidOperationException("El rechazo requiere un motivo.");
 
         var estadoAnterior = estimacion.Estado;
@@ -205,12 +258,22 @@ public class EstimacionService : IEstimacionService
             estimacion.FechaAprobacionResidencia = DateTime.UtcNow;
             estimacion.UsuarioAprobacionResidenciaId = dto.UsuarioId;
         }
+        else if (to == EstadoEstimacion.Rechazada)
+        {
+            // Al rechazar vuelve a Borrador para edición
+            estimacion.Estado = EstadoEstimacion.Borrador;
+        }
+        else if (to == EstadoEstimacion.Pagada)
+        {
+            estimacion.FechaPago = DateTime.UtcNow;
+            estimacion.EstadoPago = EstadoPagoEstimacion.Pagada;
+        }
 
         _context.EstimacionHistoriales.Add(new EstimacionHistorial
         {
             EstimacionId = estimacionId,
             EstadoAnterior = estadoAnterior,
-            EstadoNuevo = to,
+            EstadoNuevo = estimacion.Estado,
             Fecha = DateTime.UtcNow,
             UsuarioId = dto.UsuarioId,
             Comentario = dto.Comentario
@@ -218,19 +281,14 @@ public class EstimacionService : IEstimacionService
 
         await _context.SaveChangesAsync(ct);
 
-        // Resolver alerta anterior y emitir la siguiente según el nuevo estado
-        if (to == EstadoEstimacion.ObservadaSupervision)
-        {
-            // La estimación vuelve al superintendente para corrección; dejar alerta activa
-        }
-        else if (to == EstadoEstimacion.AprobadaSupervision)
+        if (to == EstadoEstimacion.AprobadaSupervision)
         {
             await _alertaService.ResolverAsync(TipoAlerta.EstimacionPlazoRevision, estimacion.Id, ct);
             await _alertaService.EmitirAsync(estimacion.ContratoId, TipoAlerta.EstimacionPlazoRevision, estimacion.Id,
                 nameof(Estimacion), RolSistema.Residencia,
-                $"Estimación N.° {estimacion.NumeroCorrelativo} aprobada por supervisión, pendiente revisión de residencia.", ct);
+                $"Estimación N.° {estimacion.NumeroEstimacion} aprobada por supervisión, pendiente revisión de residencia.", ct);
         }
-        else if (to == EstadoEstimacion.AprobadaResidencia || to == EstadoEstimacion.RechazadaResidencia)
+        else if (to == EstadoEstimacion.AprobadaResidencia || to == EstadoEstimacion.Rechazada)
         {
             await _alertaService.ResolverAsync(TipoAlerta.EstimacionPlazoRevision, estimacion.Id, ct);
         }
@@ -251,7 +309,7 @@ public class EstimacionService : IEstimacionService
 
         var montoEstimado = await _context.EstimacionConceptos
             .Where(c => c.EstimacionId == estimacionId)
-            .SumAsync(c => c.Importe, ct);
+            .SumAsync(c => c.ImporteTotal, ct);
 
         var nuevoAcumulado = estimacion.MontoPagadoAcumulado + dto.MontoPagado;
         if (nuevoAcumulado > montoEstimado + 0.01m)

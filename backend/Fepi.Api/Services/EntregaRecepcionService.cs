@@ -96,7 +96,7 @@ public class EntregaRecepcionService : IEntregaRecepcionService
                 c.Estimacion != null &&
                 c.Estimacion.ContratoId == contratoId &&
                 c.Estimacion.Estado == EstadoEstimacion.AprobadaResidencia)
-            .SumAsync(c => c.Importe, ct);
+            .SumAsync(c => c.ImporteTotal, ct);
 
         var finiquito = await _context.Finiquitos
             .FirstOrDefaultAsync(f => f.ContratoId == contratoId, ct);

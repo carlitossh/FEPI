@@ -30,4 +30,6 @@ public interface IContratoService
         CancellationToken ct = default);
 
     Task ActualizarAsync(int contratoId, ActualizarContratoDto dto, CancellationToken ct = default);
+
+    Task<ContratoDetalleCompletoDto> ObtenerDetalleCompletoAsync(int contratoId, CancellationToken ct = default);
 }

@@ -27,18 +27,23 @@ public class ConvenioService : IConvenioService
             ?? throw new InvalidOperationException("Contrato no encontrado.");
 
         var variacionPrevia = await _context.ConveniosModificatorios
-            .Where(c => c.ContratoId == dto.ContratoId && c.Estado == EstadoConvenio.Aprobada)
+            .Where(c => c.ContratoId == dto.ContratoId && c.Estado == EstadoConvenio.Aplicado)
             .SumAsync(c => c.VariacionAcumuladaPorcentaje, ct);
 
         var variacionNueva = variacionPrevia;
-        if (dto.Tipo == TipoModificacionConvenio.Monto && dto.MontoSolicitado.HasValue && contrato.MontoContratado > 0)
-            variacionNueva += (dto.MontoSolicitado.Value / contrato.MontoContratado) * 100;
+        if (dto.Tipo == TipoConvenio.ModificacionMonto && dto.MontoSolicitado.HasValue && contrato.ImporteTotal > 0)
+            variacionNueva += (dto.MontoSolicitado.Value / contrato.ImporteTotal) * 100;
 
         var convenio = new ConvenioModificatorio
         {
-            ContratoId = dto.ContratoId, Tipo = dto.Tipo, Justificacion = dto.Justificacion,
-            Estado = EstadoConvenio.Solicitada, MontoSolicitado = dto.MontoSolicitado, PlazoDiasSolicitado = dto.PlazoDiasSolicitado,
-            VariacionAcumuladaPorcentaje = Math.Round(variacionNueva, 2), SolicitanteId = dto.SolicitanteId
+            ContratoId = dto.ContratoId,
+            Tipo = dto.Tipo,
+            Justificacion = dto.Justificacion,
+            Estado = EstadoConvenio.Revisado,
+            MontoSolicitado = dto.MontoSolicitado,
+            PlazoDiasSolicitado = dto.PlazoDiasSolicitado,
+            VariacionAcumuladaPorcentaje = Math.Round(variacionNueva, 2),
+            SolicitanteId = dto.SolicitanteId
         };
 
         foreach (var url in dto.UrlsDocumentos)
@@ -78,11 +83,13 @@ public class ConvenioService : IConvenioService
 
         _context.ConvenioRevisionesSupervision.Add(new ConvenioRevisionSupervision
         {
-            ConvenioModificatorioId = convenioId, Decision = dto.Decision,
-            Justificacion = dto.Justificacion, SupervisorId = dto.SupervisorId
+            ConvenioModificatorioId = convenioId,
+            Decision = dto.Decision,
+            Justificacion = dto.Justificacion,
+            SupervisorId = dto.SupervisorId
         });
 
-        convenio.Estado = EstadoConvenio.RevisadaSupervision;
+        convenio.Estado = EstadoConvenio.AprobadoSupervision;
         await _context.SaveChangesAsync(ct);
     }
 
@@ -97,10 +104,11 @@ public class ConvenioService : IConvenioService
 
         _context.ConvenioPromocionesResidencia.Add(new ConvenioPromocionResidencia
         {
-            ConvenioModificatorioId = convenioId, ResidenteId = dto.ResidenteId
+            ConvenioModificatorioId = convenioId,
+            ResidenteId = dto.ResidenteId
         });
 
-        convenio.Estado = EstadoConvenio.PromovidaResidencia;
+        convenio.Estado = EstadoConvenio.AprobadoResidencia;
         await _context.SaveChangesAsync(ct);
 
         await _alertaService.EmitirAsync(convenio.ContratoId, TipoAlerta.ConvenioPendienteResolucion, convenioId,
@@ -114,21 +122,22 @@ public class ConvenioService : IConvenioService
 
         _context.ConvenioResolucionesDependencia.Add(new ConvenioResolucionDependencia
         {
-            ConvenioModificatorioId = convenioId, Aprobado = dto.Aprobado,
-            MotivoRechazo = dto.MotivoRechazo, UsuarioDependenciaId = dto.UsuarioDependenciaId
+            ConvenioModificatorioId = convenioId,
+            Aprobado = dto.Aprobado,
+            MotivoRechazo = dto.MotivoRechazo,
+            UsuarioDependenciaId = dto.UsuarioDependenciaId
         });
 
-        convenio.Estado = dto.Aprobado ? EstadoConvenio.Aprobada : EstadoConvenio.Rechazada;
+        // Cuando no es aprobado vuelve a estado Revisado para nueva iteración
+        convenio.Estado = dto.Aprobado ? EstadoConvenio.Aplicado : EstadoConvenio.Revisado;
         await _context.SaveChangesAsync(ct);
 
-        if (dto.Aprobado && convenio.Tipo == TipoModificacionConvenio.Monto && convenio.MontoSolicitado.HasValue)
+        if (dto.Aprobado && convenio.Tipo == TipoConvenio.ModificacionMonto && convenio.MontoSolicitado.HasValue)
         {
             var contrato = await _context.Contratos.FindAsync(new object[] { convenio.ContratoId }, ct)!;
-            await _contratoService.ActualizarMontoContratadoAsync(convenio.ContratoId, contrato!.MontoContratado + convenio.MontoSolicitado.Value, ct);
+            await _contratoService.ActualizarMontoContratadoAsync(
+                convenio.ContratoId, contrato!.ImporteTotal + convenio.MontoSolicitado.Value, ct);
         }
-        // Para convenios de Plazo o ConceptoContratos, el frontend invoca por separado
-        // IContratoService.ActualizarProgramaObraAsync / AgregarOActualizarConceptoCatalogoAsync
-        // con los datos capturados en la pantalla de resolución.
 
         await _alertaService.ResolverAsync(TipoAlerta.ConvenioPendienteResolucion, convenioId, ct);
     }

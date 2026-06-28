@@ -65,6 +65,112 @@ namespace Fepi.Api.Migrations
                     b.ToTable("Alertas");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.AlertaUsuario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("EntidadId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EntidadRelacionada")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("FechaLectura")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Leida")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Mensaje")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Prioridad")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("AlertasUsuario");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ArchivoEvidencia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EntidadId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EntidadRelacionada")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("FechaSubida")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NombreGuardado")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("NombreOriginal")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("RutaLocal")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("TamanoBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TipoContenido")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("UsuarioSubioId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioSubioId");
+
+                    b.ToTable("ArchivosEvidencia");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.AvanceDiario", b =>
                 {
                     b.Property<int>("Id")
@@ -175,6 +281,9 @@ namespace Fepi.Api.Migrations
 
                     b.Property<bool>("Firmado")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("OrdenFirma")
+                        .HasColumnType("integer");
 
                     b.Property<int>("RolFirmante")
                         .HasColumnType("integer");
@@ -299,16 +408,22 @@ namespace Fepi.Api.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)");
 
+                    b.Property<int>("AutorUsuarioId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("BitacoraId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("BitacoraTipoNotaId")
+                    b.Property<int>("CantidadFirmasRequeridas")
                         .HasColumnType("integer");
 
                     b.Property<string>("Contenido")
                         .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
+
+                    b.Property<int>("EstadoFirma")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("FechaRegistro")
                         .HasColumnType("timestamp with time zone");
@@ -327,7 +442,7 @@ namespace Fepi.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BitacoraTipoNotaId");
+                    b.HasIndex("AutorUsuarioId");
 
                     b.HasIndex("FolioVinculadoId");
 
@@ -375,6 +490,9 @@ namespace Fepi.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Abierta")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("BitacoraId")
                         .HasColumnType("integer");
 
@@ -391,10 +509,24 @@ namespace Fepi.Api.Migrations
                     b.Property<DateTime>("FechaApertura")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly>("FechaInicio")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("FechaTerminoProgramada")
+                        .HasColumnType("date");
+
                     b.Property<string>("FolioBitacora")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("MontoContratadoConIVA")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("MontoContratadoSinIVA")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("NombreContrato")
                         .IsRequired()
@@ -411,15 +543,24 @@ namespace Fepi.Api.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<int?>("ResidenteObraUsuarioId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Superintendente")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<int?>("SuperintendenteUsuarioId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Supervisor")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
+
+                    b.Property<int?>("SupervisorObraUsuarioId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("TipoContrato")
                         .HasColumnType("integer");
@@ -432,6 +573,12 @@ namespace Fepi.Api.Migrations
                     b.HasIndex("FolioBitacora")
                         .IsUnique();
 
+                    b.HasIndex("ResidenteObraUsuarioId");
+
+                    b.HasIndex("SuperintendenteUsuarioId");
+
+                    b.HasIndex("SupervisorObraUsuarioId");
+
                     b.ToTable("CaratulasBitacora");
                 });
 
@@ -442,6 +589,9 @@ namespace Fepi.Api.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("CantidadContratada")
                         .HasPrecision(18, 4)
@@ -455,18 +605,23 @@ namespace Fepi.Api.Migrations
                     b.Property<int>("ContratoId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("ConvenioModificatorioId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<decimal>("Importe")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                    b.Property<bool>("EsExtraordinario")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("PrecioUnitario")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<int?>("SeccionConceptoId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("UnidadMedida")
                         .IsRequired()
@@ -476,6 +631,10 @@ namespace Fepi.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ContratoId");
+
+                    b.HasIndex("ConvenioModificatorioId");
+
+                    b.HasIndex("SeccionConceptoId");
 
                     b.ToTable("ConceptosContrato");
                 });
@@ -488,20 +647,13 @@ namespace Fepi.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ContratistaEmpresa")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ContratistaRepresentante")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<string>("DependenciaContratante")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("Estado")
                         .HasColumnType("integer");
@@ -515,20 +667,44 @@ namespace Fepi.Api.Migrations
                     b.Property<DateOnly>("FechaTermino")
                         .HasColumnType("date");
 
-                    b.Property<decimal>("MontoContratado")
+                    b.Property<decimal>("IVA")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImporteSinIVA")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("ModalidadPago")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MontoAnticipo")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("NombreObra")
-                        .HasColumnType("text");
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("NumeroContrato")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
-                    b.Property<int>("PeriodoEstimacion")
+                    b.Property<string>("NumeroLicitacion")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("NumeroPeriodos")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("PorcentajeAnticipo")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<string>("ResidenteNombre")
                         .HasColumnType("text");
@@ -542,12 +718,89 @@ namespace Fepi.Api.Migrations
                     b.Property<int>("Tipo")
                         .HasColumnType("integer");
 
+                    b.Property<int>("TipoPeriodo")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UbicacionExacta")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
 
                     b.HasIndex("NumeroContrato")
                         .IsUnique();
 
                     b.ToTable("Contratos");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ContratoRepresentanteHistorial", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("FechaCambio")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RepresentanteUsuarioId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId");
+
+                    b.HasIndex("RepresentanteUsuarioId");
+
+                    b.ToTable("ContratoRepresentantesHistorial");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ConvenioCambio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CampoAfectado")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("ConvenioModificatorioId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DescripcionCambio")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("EntidadAfectada")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ValorAnterior")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ValorNuevo")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConvenioModificatorioId");
+
+                    b.ToTable("ConvenioCambios");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.ConvenioDocumento", b =>
@@ -589,10 +842,18 @@ namespace Fepi.Api.Migrations
                     b.Property<int>("ContratoId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<int>("Estado")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("FechaSolicitud")
+                    b.Property<DateTime?>("FechaAutorizacion")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FechaEmision")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Justificacion")
@@ -603,6 +864,11 @@ namespace Fepi.Api.Migrations
                     b.Property<decimal?>("MontoSolicitado")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("NumeroConvenio")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<int?>("PlazoDiasSolicitado")
                         .HasColumnType("integer");
@@ -755,6 +1021,29 @@ namespace Fepi.Api.Migrations
                     b.ToTable("DocumentosContrato");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.Empresa", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("RepresentanteUsuarioId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepresentanteUsuarioId");
+
+                    b.ToTable("Empresas");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.EntregaRecepcion", b =>
                 {
                     b.Property<int>("Id")
@@ -817,6 +1106,9 @@ namespace Fepi.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ArchivoComprobantePagoId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ContratoId")
                         .HasColumnType("integer");
 
@@ -838,17 +1130,23 @@ namespace Fepi.Api.Migrations
                     b.Property<DateTime?>("FechaEnvio")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("FechaPago")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("MontoPagadoAcumulado")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<int>("NumeroCorrelativo")
+                    b.Property<int>("NumeroEstimacion")
                         .HasColumnType("integer");
 
                     b.Property<string>("Periodo")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
+
+                    b.Property<int?>("PeriodoContratoId")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("UsuarioAprobacionResidenciaId")
                         .HasColumnType("integer");
@@ -861,13 +1159,17 @@ namespace Fepi.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ArchivoComprobantePagoId");
+
+                    b.HasIndex("PeriodoContratoId");
+
                     b.HasIndex("UsuarioAprobacionResidenciaId");
 
                     b.HasIndex("UsuarioAprobacionSupervisionId");
 
                     b.HasIndex("UsuarioEnvioId");
 
-                    b.HasIndex("ContratoId", "NumeroCorrelativo")
+                    b.HasIndex("ContratoId", "NumeroEstimacion")
                         .IsUnique();
 
                     b.ToTable("Estimaciones");
@@ -881,7 +1183,19 @@ namespace Fepi.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("CantidadEjecutada")
+                    b.Property<decimal>("CantidadAcumuladaActual")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("CantidadAcumuladaAnterior")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("CantidadEjecutadaPeriodo")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("CantidadPorEjecutar")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
@@ -891,7 +1205,11 @@ namespace Fepi.Api.Migrations
                     b.Property<int>("EstimacionId")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("Importe")
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("PrecioUnitarioActual")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
@@ -1106,6 +1424,91 @@ namespace Fepi.Api.Migrations
                     b.ToTable("Finiquitos");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.FiniquitoContrato", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BitacoraNotaCierreId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CreadoPorUsuarioId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Deductivas")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("FechaFiniquito")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FechaInicioCierre")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ImporteContratoFinal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImporteContratoOriginal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImporteConvenios")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImporteEstimadoTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImporteFinalAFiniquitar")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ImportePagadoTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Observaciones")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal>("PenasConvencionales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Retenciones")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("SaldoPendiente")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BitacoraNotaCierreId");
+
+                    b.HasIndex("ContratoId")
+                        .IsUnique();
+
+                    b.HasIndex("CreadoPorUsuarioId");
+
+                    b.ToTable("FiniquitosContrato");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.Garantia", b =>
                 {
                     b.Property<int>("Id")
@@ -1141,6 +1544,34 @@ namespace Fepi.Api.Migrations
                     b.ToTable("Garantias");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.PeriodoContrato", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("FechaFin")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("FechaInicio")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Numero")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId", "Numero")
+                        .IsUnique();
+
+                    b.ToTable("PeriodosContrato");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.ProgramaObraItem", b =>
                 {
                     b.Property<int>("Id")
@@ -1172,6 +1603,135 @@ namespace Fepi.Api.Migrations
                     b.ToTable("ProgramaObraItems");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.ProgramaObraPeriodo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AvanceParcialPlanificado")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("numeric(8,4)");
+
+                    b.Property<decimal>("ImportePlanificadoPeriodo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("PeriodoContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("PorcentajePlanificadoPeriodo")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("numeric(8,4)");
+
+                    b.Property<int>("ProgramaObraSeccionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PeriodoContratoId");
+
+                    b.HasIndex("ProgramaObraSeccionId");
+
+                    b.ToTable("ProgramaObraPeriodos");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ProgramaObraSeccion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PeriodoFinId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PeriodoInicioId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SeccionConceptoId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId");
+
+                    b.HasIndex("PeriodoFinId");
+
+                    b.HasIndex("PeriodoInicioId");
+
+                    b.HasIndex("SeccionConceptoId");
+
+                    b.ToTable("ProgramaObraSecciones");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.RegistroDiario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly>("Fecha")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("FechaRegistro")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ResponsableUsuarioId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId");
+
+                    b.HasIndex("ResponsableUsuarioId");
+
+                    b.ToTable("RegistrosDiarios");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.SeccionConcepto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ContratoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContratoId");
+
+                    b.ToTable("SeccionesConcepto");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.Usuario", b =>
                 {
                     b.Property<int>("Id")
@@ -1193,9 +1753,25 @@ namespace Fepi.Api.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Rol")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Correo")
+                        .IsUnique();
+
+                    b.HasIndex("Username")
                         .IsUnique();
 
                     b.ToTable("Usuarios");
@@ -1237,6 +1813,35 @@ namespace Fepi.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Contrato");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.AlertaUsuario", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany()
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ArchivoEvidencia", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Usuario", "UsuarioSubio")
+                        .WithMany()
+                        .HasForeignKey("UsuarioSubioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UsuarioSubio");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.AvanceDiario", b =>
@@ -1357,15 +1962,17 @@ namespace Fepi.Api.Migrations
 
             modelBuilder.Entity("Fepi.Api.Models.BitacoraNota", b =>
                 {
+                    b.HasOne("Fepi.Api.Models.Usuario", "AutorUsuario")
+                        .WithMany()
+                        .HasForeignKey("AutorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Fepi.Api.Models.Bitacora", "Bitacora")
                         .WithMany("Notas")
                         .HasForeignKey("BitacoraId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Fepi.Api.Models.BitacoraTipoNota", null)
-                        .WithMany("Notas")
-                        .HasForeignKey("BitacoraTipoNotaId");
 
                     b.HasOne("Fepi.Api.Models.BitacoraNota", "FolioVinculado")
                         .WithMany()
@@ -1373,9 +1980,11 @@ namespace Fepi.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Fepi.Api.Models.BitacoraTipoNota", "TipoNotaCatalogo")
-                        .WithMany()
+                        .WithMany("Notas")
                         .HasForeignKey("TipoNotaCatalogoId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AutorUsuario");
 
                     b.Navigation("Bitacora");
 
@@ -1392,7 +2001,28 @@ namespace Fepi.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Fepi.Api.Models.Usuario", "ResidenteObraUsuario")
+                        .WithMany()
+                        .HasForeignKey("ResidenteObraUsuarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "SuperintendenteUsuario")
+                        .WithMany()
+                        .HasForeignKey("SuperintendenteUsuarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "SupervisorObraUsuario")
+                        .WithMany()
+                        .HasForeignKey("SupervisorObraUsuarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Bitacora");
+
+                    b.Navigation("ResidenteObraUsuario");
+
+                    b.Navigation("SuperintendenteUsuario");
+
+                    b.Navigation("SupervisorObraUsuario");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.ConceptoContrato", b =>
@@ -1403,7 +2033,62 @@ namespace Fepi.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Fepi.Api.Models.ConvenioModificatorio", "ConvenioModificatorio")
+                        .WithMany()
+                        .HasForeignKey("ConvenioModificatorioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Fepi.Api.Models.SeccionConcepto", "SeccionConcepto")
+                        .WithMany("Conceptos")
+                        .HasForeignKey("SeccionConceptoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Contrato");
+
+                    b.Navigation("ConvenioModificatorio");
+
+                    b.Navigation("SeccionConcepto");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.Contrato", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Empresa", "Empresa")
+                        .WithMany("Contratos")
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ContratoRepresentanteHistorial", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany()
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "RepresentanteUsuario")
+                        .WithMany()
+                        .HasForeignKey("RepresentanteUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+
+                    b.Navigation("RepresentanteUsuario");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ConvenioCambio", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.ConvenioModificatorio", "ConvenioModificatorio")
+                        .WithMany("Cambios")
+                        .HasForeignKey("ConvenioModificatorioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ConvenioModificatorio");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.ConvenioDocumento", b =>
@@ -1420,7 +2105,7 @@ namespace Fepi.Api.Migrations
             modelBuilder.Entity("Fepi.Api.Models.ConvenioModificatorio", b =>
                 {
                     b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
-                        .WithMany()
+                        .WithMany("Convenios")
                         .HasForeignKey("ContratoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1504,6 +2189,17 @@ namespace Fepi.Api.Migrations
                     b.Navigation("Contrato");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.Empresa", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Usuario", "RepresentanteUsuario")
+                        .WithMany()
+                        .HasForeignKey("RepresentanteUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RepresentanteUsuario");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.EntregaRecepcion", b =>
                 {
                     b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
@@ -1528,11 +2224,21 @@ namespace Fepi.Api.Migrations
 
             modelBuilder.Entity("Fepi.Api.Models.Estimacion", b =>
                 {
+                    b.HasOne("Fepi.Api.Models.ArchivoEvidencia", "ArchivoComprobantePago")
+                        .WithMany()
+                        .HasForeignKey("ArchivoComprobantePagoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
                         .WithMany()
                         .HasForeignKey("ContratoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.PeriodoContrato", "PeriodoContrato")
+                        .WithMany()
+                        .HasForeignKey("PeriodoContratoId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Fepi.Api.Models.Usuario", "UsuarioAprobacionResidencia")
                         .WithMany()
@@ -1549,7 +2255,11 @@ namespace Fepi.Api.Migrations
                         .HasForeignKey("UsuarioEnvioId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.Navigation("ArchivoComprobantePago");
+
                     b.Navigation("Contrato");
+
+                    b.Navigation("PeriodoContrato");
 
                     b.Navigation("UsuarioAprobacionResidencia");
 
@@ -1674,6 +2384,32 @@ namespace Fepi.Api.Migrations
                     b.Navigation("Contrato");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.FiniquitoContrato", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.BitacoraNota", "BitacoraNotaCierre")
+                        .WithMany()
+                        .HasForeignKey("BitacoraNotaCierreId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany()
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "CreadoPor")
+                        .WithMany()
+                        .HasForeignKey("CreadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BitacoraNotaCierre");
+
+                    b.Navigation("Contrato");
+
+                    b.Navigation("CreadoPor");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.Garantia", b =>
                 {
                     b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
@@ -1685,10 +2421,105 @@ namespace Fepi.Api.Migrations
                     b.Navigation("Contrato");
                 });
 
+            modelBuilder.Entity("Fepi.Api.Models.PeriodoContrato", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany("Periodos")
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+                });
+
             modelBuilder.Entity("Fepi.Api.Models.ProgramaObraItem", b =>
                 {
                     b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
                         .WithMany("ProgramaObra")
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ProgramaObraPeriodo", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.PeriodoContrato", "PeriodoContrato")
+                        .WithMany()
+                        .HasForeignKey("PeriodoContratoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.ProgramaObraSeccion", "ProgramaObraSeccion")
+                        .WithMany("Periodos")
+                        .HasForeignKey("ProgramaObraSeccionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PeriodoContrato");
+
+                    b.Navigation("ProgramaObraSeccion");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ProgramaObraSeccion", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany("ProgramaObraSecciones")
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.PeriodoContrato", "PeriodoFin")
+                        .WithMany()
+                        .HasForeignKey("PeriodoFinId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.PeriodoContrato", "PeriodoInicio")
+                        .WithMany()
+                        .HasForeignKey("PeriodoInicioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.SeccionConcepto", "SeccionConcepto")
+                        .WithMany()
+                        .HasForeignKey("SeccionConceptoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+
+                    b.Navigation("PeriodoFin");
+
+                    b.Navigation("PeriodoInicio");
+
+                    b.Navigation("SeccionConcepto");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.RegistroDiario", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany()
+                        .HasForeignKey("ContratoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Fepi.Api.Models.Usuario", "ResponsableUsuario")
+                        .WithMany()
+                        .HasForeignKey("ResponsableUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Contrato");
+
+                    b.Navigation("ResponsableUsuario");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.SeccionConcepto", b =>
+                {
+                    b.HasOne("Fepi.Api.Models.Contrato", "Contrato")
+                        .WithMany("SeccionesConcepto")
                         .HasForeignKey("ContratoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1750,17 +2581,27 @@ namespace Fepi.Api.Migrations
                 {
                     b.Navigation("ConceptoContratos");
 
+                    b.Navigation("Convenios");
+
                     b.Navigation("Documentos");
 
                     b.Navigation("Garantias");
 
+                    b.Navigation("Periodos");
+
                     b.Navigation("ProgramaObra");
+
+                    b.Navigation("ProgramaObraSecciones");
+
+                    b.Navigation("SeccionesConcepto");
 
                     b.Navigation("Usuarios");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.ConvenioModificatorio", b =>
                 {
+                    b.Navigation("Cambios");
+
                     b.Navigation("Documentos");
 
                     b.Navigation("PromocionResidencia");
@@ -1768,6 +2609,11 @@ namespace Fepi.Api.Migrations
                     b.Navigation("ResolucionDependencia");
 
                     b.Navigation("RevisionSupervision");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.Empresa", b =>
+                {
+                    b.Navigation("Contratos");
                 });
 
             modelBuilder.Entity("Fepi.Api.Models.EntregaRecepcion", b =>
@@ -1788,6 +2634,16 @@ namespace Fepi.Api.Migrations
                     b.Navigation("Observaciones");
 
                     b.Navigation("Pagos");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.ProgramaObraSeccion", b =>
+                {
+                    b.Navigation("Periodos");
+                });
+
+            modelBuilder.Entity("Fepi.Api.Models.SeccionConcepto", b =>
+                {
+                    b.Navigation("Conceptos");
                 });
 #pragma warning restore 612, 618
         }

@@ -3,23 +3,44 @@ public class Contrato
 {
     public int Id { get; set; }
     public string NumeroContrato { get; set; } = null!;
+    public string? NumeroLicitacion { get; set; }
     public string? NombreObra { get; set; }
     public TipoContrato Tipo { get; set; }
-    public decimal MontoContratado { get; set; }
+
+    public int EmpresaId { get; set; }
+    public Empresa? Empresa { get; set; }
+
+    public string DependenciaContratante { get; set; } = null!;
+    public string? UbicacionExacta { get; set; }
+
+    public decimal ImporteTotal { get; set; }
+    public decimal ImporteSinIVA { get; set; }
+    public decimal IVA { get; set; }
+
+    public ModalidadPago ModalidadPago { get; set; }
+    public decimal PorcentajeAnticipo { get; set; }
+    public decimal MontoAnticipo { get; set; }
+
     public DateOnly FechaInicio { get; set; }
     public DateOnly FechaTermino { get; set; }
-    public PeriodoEstimacion PeriodoEstimacion { get; set; }
-    public string DependenciaContratante { get; set; } = null!;
-    public string ContratistaEmpresa { get; set; } = null!;
-    public string ContratistaRepresentante { get; set; } = null!;
+
+    public TipoPeriodoEstimacion TipoPeriodo { get; set; }
+    public int NumeroPeriodos { get; set; }
+
+    public EstadoContrato Estado { get; set; } = EstadoContrato.Activo;
+    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+
     public string? ResidenteNombre { get; set; }
     public string? SupervisorExternoNombre { get; set; }
     public string? SuperintendenteNombre { get; set; }
-    public EstadoContrato Estado { get; set; } = EstadoContrato.Activo;
-    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+
+    public ICollection<SeccionConcepto> SeccionesConcepto { get; set; } = new List<SeccionConcepto>();
     public ICollection<ConceptoContrato> ConceptoContratos { get; set; } = new List<ConceptoContrato>();
+    public ICollection<PeriodoContrato> Periodos { get; set; } = new List<PeriodoContrato>();
     public ICollection<ProgramaObraItem> ProgramaObra { get; set; } = new List<ProgramaObraItem>();
+    public ICollection<ProgramaObraSeccion> ProgramaObraSecciones { get; set; } = new List<ProgramaObraSeccion>();
     public ICollection<Garantia> Garantias { get; set; } = new List<Garantia>();
     public ICollection<DocumentoContrato> Documentos { get; set; } = new List<DocumentoContrato>();
     public ICollection<UsuarioContrato> Usuarios { get; set; } = new List<UsuarioContrato>();
+    public ICollection<ConvenioModificatorio> Convenios { get; set; } = new List<ConvenioModificatorio>();
 }

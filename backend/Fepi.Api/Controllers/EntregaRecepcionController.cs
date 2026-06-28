@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Fepi.Api.Controllers;
 
-/// <summary>SV-05 — Entrega-Recepción y Finiquito. Cubre HU-19, HU-20.</summary>
 [ApiController]
 [Route("api/entrega-recepcion")]
 public class EntregaRecepcionController : ControllerBase
@@ -23,17 +22,6 @@ public class EntregaRecepcionController : ControllerBase
     public async Task<ActionResult<EntregaRecepcionDto>> Obtener(int contratoId, CancellationToken ct)
     {
         var result = await _service.ObtenerAsync(contratoId, ct);
-        return result is null ? NotFound() : Ok(result);
-    }
-
-    [HttpPost("contrato/{contratoId:int}/finiquito")]
-    public async Task<ActionResult<FiniquitoDto>> EmitirFiniquito(int contratoId, [FromBody] EmitirFiniquitoDto dto, CancellationToken ct)
-        => Ok(await _service.EmitirFiniquitoAsync(contratoId, dto, ct));
-
-    [HttpGet("contrato/{contratoId:int}/finiquito")]
-    public async Task<ActionResult<FiniquitoDto>> ObtenerFiniquito(int contratoId, CancellationToken ct)
-    {
-        var result = await _service.ObtenerFiniquitoAsync(contratoId, ct);
         return result is null ? NotFound() : Ok(result);
     }
 }

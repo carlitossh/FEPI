@@ -28,10 +28,22 @@ builder.Services.AddScoped<IEntregaRecepcionService, EntregaRecepcionService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAlertaService, AlertaService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<IEmpresaService, EmpresaService>();
+builder.Services.AddScoped<IConceptosService, ConceptosService>();
+builder.Services.AddScoped<IProgramaObraService, ProgramaObraService>();
+builder.Services.AddScoped<IRegistroDiarioService, RegistroDiarioService>();
+builder.Services.AddScoped<IArchivoService, ArchivoService>();
+builder.Services.AddScoped<IAlertaUsuarioService, AlertaUsuarioService>();
+builder.Services.AddScoped<IFiniquitoContratoService, FiniquitoContratoService>();
 
 builder.Services.AddScoped<IEstimacionRepository, EstimacionRepository>();
 builder.Services.AddScoped<IBitacoraNotaRepository, BitacoraNotaRepository>();
 builder.Services.AddScoped<IConvenioRepository, ConvenioRepository>();
+builder.Services.AddScoped<IEmpresaRepository, EmpresaRepository>();
+builder.Services.AddScoped<IRegistroDiarioRepository, RegistroDiarioRepository>();
+builder.Services.AddScoped<IArchivoEvidenciaRepository, ArchivoEvidenciaRepository>();
+builder.Services.AddScoped<IAlertaUsuarioRepository, AlertaUsuarioRepository>();
+builder.Services.AddScoped<IFiniquitoContratoRepository, FiniquitoContratoRepository>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -58,7 +70,7 @@ app.Use(async (ctx, next) =>
     }
 });
 
-await SeedData.InitializeAsync(app.Services);
+//await SeedData.InitializeAsync(app.Services);
 
 app.UseSwagger();
 
@@ -68,6 +80,7 @@ app.MapScalarApiReference(options =>
 {
     options.Title = "API FEPI Documentation";
     options.Theme = ScalarTheme.Purple;
+    options.OpenApiRoutePattern = "/swagger/v1/swagger.json";
 });
 
 app.UseCors();

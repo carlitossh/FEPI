@@ -1,7 +1,9 @@
 namespace Fepi.Api.Models;
-public enum TipoModificacionConvenio
+public enum TipoConvenio
 {
-    Monto = 1,
-    Plazo = 2,
-    ConceptoContratos = 3
+    AmpliacionPlazo = 1,
+    AjusteFechas = 2,
+    ConceptosExtraordinarios = 3,
+    ModificacionCantidades = 4,
+    ModificacionMonto = 5
 }

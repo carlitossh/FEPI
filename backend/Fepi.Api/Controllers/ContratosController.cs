@@ -19,12 +19,13 @@ public class ContratosController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<int>> Crear(
+    public async Task<ActionResult<ApiResponse<int>>> Crear(
         [FromBody] CrearContratoDto dto,
         CancellationToken ct)
     {
         var id = await _service.CrearAsync(dto, ct);
-        return CreatedAtAction(nameof(ObtenerResumen), new { id }, id);
+        return CreatedAtAction(nameof(ObtenerResumen), new { id },
+            new ApiResponse<int>(true, "Contrato creado correctamente.", id));
     }
 
     [HttpGet("{id:int}")]
@@ -90,4 +91,3 @@ public class ContratosController : ControllerBase
     }
 }
 
-public record ActualizarMontoContratoDto(decimal NuevoMonto);

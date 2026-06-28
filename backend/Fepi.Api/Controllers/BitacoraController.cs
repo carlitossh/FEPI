@@ -27,34 +27,22 @@ public class BitacoraController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("notas/buscar")]
-    public async Task<ActionResult<List<BitacoraNotaDto>>> Buscar(
-        [FromQuery] int BitacoraId, [FromQuery] string? asunto,
-        [FromQuery] DateOnly? fechaInicio, [FromQuery] DateOnly? fechaFin, [FromQuery] int? actorId, CancellationToken ct)
-        => Ok(await _service.BuscarNotasAsync(BitacoraId, asunto, fechaInicio, fechaFin, actorId, ct));
-
+    /// <summary>Lista las notas de una bitácora con filtros opcionales.</summary>
     [HttpGet("{bitacoraId:int}/notas")]
     public async Task<ActionResult<List<BitacoraNotaDto>>> ObtenerNotas(
         int bitacoraId,
+        [FromQuery] string? asunto,
+        [FromQuery] DateOnly? fechaInicio,
+        [FromQuery] DateOnly? fechaFin,
+        [FromQuery] int? actorId,
         CancellationToken ct)
-    {
-        return Ok(await _service.BuscarNotasAsync(
-            bitacoraId,
-            null,
-            null,
-            null,
-            null,
-            ct
-        ));
-    }
+        => Ok(await _service.BuscarNotasAsync(bitacoraId, asunto, fechaInicio, fechaFin, actorId, ct));
 
     [HttpGet("{bitacoraId:int}/eventos")]
     public async Task<ActionResult<List<BitacoraEventoDto>>> ObtenerEventos(
         int bitacoraId,
         CancellationToken ct)
-    {
-        return Ok(await _service.ObtenerEventosAsync(bitacoraId, ct));
-    }
+        => Ok(await _service.ObtenerEventosAsync(bitacoraId, ct));
 
     [HttpPost("minutas")]
     public async Task<IActionResult> CrearMinuta([FromBody] CrearMinutaDto dto, CancellationToken ct)
@@ -70,6 +58,4 @@ public class BitacoraController : ControllerBase
     [HttpPost("incidencias/generar-nota")]
     public async Task<ActionResult<BitacoraNotaDto>> GenerarNotaDesdeIncidencia([FromBody] GenerarNotaDesdeIncidenciaDto dto, CancellationToken ct)
         => Ok(await _service.GenerarNotaDesdeIncidenciaAsync(dto, ct));
-
-    
 }

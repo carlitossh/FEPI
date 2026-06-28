@@ -93,6 +93,8 @@ public record CrearContratoDto(
     string SuperintendenteNombre = "",
     List<GarantiaInputDto>? Garantias = null);
 
+public record ActualizarMontoContratoDto(decimal NuevoMonto);
+
 public record ActualizarContratoDto(
     string NumeroContrato,
     TipoContrato Tipo,

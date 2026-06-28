@@ -34,13 +34,6 @@ public class ConveniosController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id:int}/dictamen")]
-    public async Task<IActionResult> Dictamen(int id, [FromBody] RevisarConvenioDto dto, CancellationToken ct)
-    {
-        await _service.RevisarAsync(id, dto, ct);
-        return NoContent();
-    }
-
     [HttpPost("{id:int}/promover")]
     public async Task<IActionResult> Promover(int id, [FromBody] PromoverConvenioDto dto, CancellationToken ct)
     {
@@ -50,13 +43,6 @@ public class ConveniosController : ControllerBase
 
     [HttpPost("{id:int}/resolver")]
     public async Task<IActionResult> Resolver(int id, [FromBody] ResolverConvenioDto dto, CancellationToken ct)
-    {
-        await _service.ResolverAsync(id, dto, ct);
-        return NoContent();
-    }
-
-    [HttpPost("{id:int}/resolucion")]
-    public async Task<IActionResult> Resolucion(int id, [FromBody] ResolverConvenioDto dto, CancellationToken ct)
     {
         await _service.ResolverAsync(id, dto, ct);
         return NoContent();

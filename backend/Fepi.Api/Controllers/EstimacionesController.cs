@@ -52,7 +52,7 @@ public class EstimacionesController : ControllerBase
     public async Task<ActionResult<ObservacionDto>> AgregarObservacion(int id, [FromBody] CrearObservacionDto dto, [FromQuery] int usuarioId, CancellationToken ct)
         => Ok(await _service.AgregarObservacionAsync(id, dto, usuarioId, ct));
 
-    [HttpPost("{id:int}/estado")]
+    [HttpPatch("{id:int}/estado")]
     public async Task<IActionResult> CambiarEstado(int id, [FromBody] CambiarEstadoEstimacionDto dto, CancellationToken ct)
     {
         await _service.CambiarEstadoAsync(id, dto, ct);

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Fepi.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/empresas")]
 public class EmpresasController : ControllerBase
 {
     private readonly IEmpresaService _service;

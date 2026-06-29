@@ -33,5 +33,11 @@ public class EmpresasController : ControllerBase
         var id = await _service.CrearAsync(dto, ct);
         var empresa = await _service.ObtenerAsync(id, ct);
         return CreatedAtAction(nameof(Obtener), new { id }, empresa);
-    }
+        }
+        [HttpPut("{id:int}")]
+public async Task<IActionResult> Actualizar(int id, [FromBody] CrearEmpresaRequest dto, CancellationToken ct)
+{
+    await _service.ActualizarAsync(id, dto, ct);
+    return NoContent();
+}
 }

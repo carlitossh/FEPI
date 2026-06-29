@@ -6,6 +6,8 @@ public class Empresa
 
     public string Nombre { get; set; } = null!;
 
+    public string Rfc { get; set; } = null!;
+
     public int RepresentanteUsuarioId { get; set; }
 
     public Usuario RepresentanteUsuario { get; set; } = null!;

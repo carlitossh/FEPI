@@ -114,19 +114,26 @@ public class FepiDbContext : DbContext
         // =====================
         // EMPRESA
         // =====================
-        modelBuilder.Entity<Empresa>(entity =>
-        {
-            entity.HasKey(x => x.Id);
+modelBuilder.Entity<Empresa>(entity =>
+{
+    entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Nombre)
-                .HasMaxLength(200)
-                .IsRequired();
+    entity.Property(x => x.Nombre)
+        .HasMaxLength(200)
+        .IsRequired();
 
-            entity.HasOne(x => x.RepresentanteUsuario)
-                .WithMany()
-                .HasForeignKey(x => x.RepresentanteUsuarioId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
+    entity.Property(x => x.Rfc)
+        .HasMaxLength(13)
+        .IsRequired();
+
+    entity.HasIndex(x => x.Rfc)
+        .IsUnique();
+
+    entity.HasOne(x => x.RepresentanteUsuario)
+        .WithMany()
+        .HasForeignKey(x => x.RepresentanteUsuarioId)
+        .OnDelete(DeleteBehavior.Restrict);
+});
 
         // =====================
         // CONTRATO

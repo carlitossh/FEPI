@@ -1114,9 +1114,17 @@ namespace Fepi.Api.Migrations
                     b.Property<int>("RepresentanteUsuarioId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Rfc")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("RepresentanteUsuarioId");
+
+                    b.HasIndex("Rfc")
+                        .IsUnique();
 
                     b.ToTable("Empresas");
                 });

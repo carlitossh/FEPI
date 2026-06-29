@@ -48,10 +48,9 @@ public static class SeedData
     {
         var superintendente = await context.Usuarios.FirstAsync(u => u.Correo == "superintendente@fepi.test");
         context.Empresas.AddRange(
-            new Empresa { Nombre = "Constructora Domínguez S.A. de C.V.",    RepresentanteUsuarioId = superintendente.Id },
-            new Empresa { Nombre = "Infraestructura del Centro S.A. de C.V.", RepresentanteUsuarioId = superintendente.Id },
-            new Empresa { Nombre = "Supervisión Técnica Integral S.C.",        RepresentanteUsuarioId = superintendente.Id }
-        );
+            new Empresa { Nombre = "Constructora Domínguez S.A. de C.V.", Rfc = "CDO010101ABC", RepresentanteUsuarioId = superintendente.Id },
+new Empresa { Nombre = "Infraestructura del Centro S.A. de C.V.", Rfc = "ICE010101ABC", RepresentanteUsuarioId = superintendente.Id },
+new Empresa { Nombre = "Supervisión Técnica Integral S.C.", Rfc = "STI010101ABC", RepresentanteUsuarioId = superintendente.Id }        );
         await context.SaveChangesAsync();
     }
 

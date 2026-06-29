@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Fepi.Api.Data;
 using Fepi.Api.DTOs;
 using Fepi.Api.Interfaces;
@@ -22,7 +23,12 @@ public class EmpresaService : IEmpresaService
             .ToListAsync(ct);
 
         return empresas.Select(e => new EmpresaResponse(
-            e.Id, e.Nombre, e.RepresentanteUsuarioId, e.RepresentanteUsuario.Nombre)).ToList();
+            e.Id,
+            e.Nombre,
+            e.Rfc,
+            e.RepresentanteUsuarioId,
+            e.RepresentanteUsuario.Nombre
+        )).ToList();
     }
 
     public async Task<EmpresaResponse> ObtenerAsync(int id, CancellationToken ct = default)
@@ -32,7 +38,13 @@ public class EmpresaService : IEmpresaService
             .FirstOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new InvalidOperationException("Empresa no encontrada.");
 
-        return new EmpresaResponse(e.Id, e.Nombre, e.RepresentanteUsuarioId, e.RepresentanteUsuario.Nombre);
+        return new EmpresaResponse(
+            e.Id,
+            e.Nombre,
+            e.Rfc,
+            e.RepresentanteUsuarioId,
+            e.RepresentanteUsuario.Nombre
+        );
     }
 
     public async Task<int> CrearAsync(CrearEmpresaRequest dto, CancellationToken ct = default)
@@ -43,14 +55,21 @@ public class EmpresaService : IEmpresaService
         if (representante.Rol != RolUsuario.Superintendente)
             throw new InvalidOperationException("El representante debe tener rol Superintendente.");
 
+        var rfc = NormalizarRfc(dto.Rfc);
+
+        if (await _context.Empresas.AnyAsync(e => e.Rfc == rfc, ct))
+            throw new InvalidOperationException("Ya existe una empresa con ese RFC.");
+
         var empresa = new Empresa
         {
             Nombre = dto.Nombre,
+            Rfc = rfc,
             RepresentanteUsuarioId = dto.RepresentanteUsuarioId
         };
 
         _context.Empresas.Add(empresa);
         await _context.SaveChangesAsync(ct);
+
         return empresa.Id;
     }
 
@@ -65,8 +84,15 @@ public class EmpresaService : IEmpresaService
         if (representante.Rol != RolUsuario.Superintendente)
             throw new InvalidOperationException("El representante debe tener rol Superintendente.");
 
+        var rfc = NormalizarRfc(dto.Rfc);
+
+        if (await _context.Empresas.AnyAsync(e => e.Id != id && e.Rfc == rfc, ct))
+            throw new InvalidOperationException("Ya existe otra empresa con ese RFC.");
+
         empresa.Nombre = dto.Nombre;
+        empresa.Rfc = rfc;
         empresa.RepresentanteUsuarioId = dto.RepresentanteUsuarioId;
+
         await _context.SaveChangesAsync(ct);
     }
 
@@ -82,6 +108,17 @@ public class EmpresaService : IEmpresaService
             throw new InvalidOperationException("El representante debe tener rol Superintendente.");
 
         empresa.RepresentanteUsuarioId = usuarioId;
+
         await _context.SaveChangesAsync(ct);
+    }
+
+    private static string NormalizarRfc(string rfc)
+    {
+        var normalizado = (rfc ?? "").Trim().ToUpperInvariant();
+
+        if (!Regex.IsMatch(normalizado, @"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$"))
+            throw new InvalidOperationException("El RFC no tiene un formato válido.");
+
+        return normalizado;
     }
 }

@@ -7,12 +7,14 @@ namespace Fepi.Api.DTOs;
 
 public record CrearEmpresaRequest(
     string Nombre,
+    string Rfc,
     int RepresentanteUsuarioId
 );
 
 public record EmpresaResponse(
     int Id,
     string Nombre,
+    string Rfc,
     int RepresentanteUsuarioId,
     string RepresentanteNombre
 );

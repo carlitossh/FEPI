@@ -170,8 +170,9 @@ public record ContratoDetalleDto(
     DateOnly FechaInicio,
     DateOnly FechaTermino,
     string DependenciaContratante,
-    string ContratistaEmpresa,
-    string ContratistaRepresentante,
+string ContratistaEmpresa,
+string ContratistaRfc,
+string ContratistaRepresentante,
     EstadoContrato Estado,
     decimal ImporteTotalCatalogo,
     string? NombreObra,
@@ -214,8 +215,7 @@ public record ActividadRecienteDto(DateTime Fecha, string Modulo, string Descrip
 
 // ===================== DETALLE COMPLETO DE CONTRATO =====================
 
-public record EmpresaResumenDetalleDto(int Id, string Nombre, string RepresentanteNombre);
-
+public record EmpresaResumenDetalleDto(int Id, string Nombre, string Rfc, string RepresentanteNombre);
 public record ResumenConceptosDetalleDto(
     int TotalSecciones,
     int TotalConceptos,

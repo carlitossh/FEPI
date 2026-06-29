@@ -10,4 +10,6 @@ public interface IConvenioService
     Task RevisarAsync(int convenioId, RevisarConvenioDto dto, CancellationToken ct = default);
     Task PromoverAsync(int convenioId, PromoverConvenioDto dto, CancellationToken ct = default);
     Task ResolverAsync(int convenioId, ResolverConvenioDto dto, CancellationToken ct = default);
+    Task<AplicarConvenioResultadoDto> AplicarAsync(int convenioId, AplicarConvenioDto dto, CancellationToken ct = default);
+    Task<List<ConvenioHistorialDto>> ObtenerHistorialAsync(int convenioId, CancellationToken ct = default);
 }

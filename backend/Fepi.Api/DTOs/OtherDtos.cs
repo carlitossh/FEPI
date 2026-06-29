@@ -26,32 +26,51 @@ public record CrearMinutaDto(int BitacoraId, DateOnly Fecha, string Lugar, strin
 public record CrearIncidenciaDto(int BitacoraId, DateOnly FechaEvento, string Descripcion, string UrlFotografia, int ActorRegistroId);
 public record GenerarNotaDesdeIncidenciaDto(int IncidenciaId, int TipoNotaCatalogoId, int UsuarioEmisorId, RolSistema RolEmisor);
 
-// SV-04 — Convenios (usa TipoConvenio y EstadoConvenio actualizados)
+// SV-04 — Convenios
 public record CrearConvenioDto(
     int ContratoId,
     TipoConvenio Tipo,
+    string Descripcion,
     string Justificacion,
     decimal? MontoSolicitado,
     int? PlazoDiasSolicitado,
     int SolicitanteId,
     List<string> UrlsDocumentos,
+    string? Observaciones = null,
     int? EmpresaId = null,
     string? NumeroConvenio = null);
 
-public record ConvenioResumenDto(int Id, TipoConvenio Tipo, EstadoConvenio Estado, decimal? MontoSolicitado, decimal VariacionAcumuladaPorcentaje);
-
-public record ConvenioDetalleDto(
+public record ConvenioResumenDto(
     int Id,
-    int ContratoId,
+    string NumeroConvenio,
     TipoConvenio Tipo,
-    string Justificacion,
     EstadoConvenio Estado,
     decimal? MontoSolicitado,
     int? PlazoDiasSolicitado,
     decimal VariacionAcumuladaPorcentaje,
+    DateTime FechaEmision,
+    bool Aplicado);
+
+public record ConvenioDetalleDto(
+    int Id,
+    int ContratoId,
+    string NumeroConvenio,
+    TipoConvenio Tipo,
+    string Descripcion,
+    string Justificacion,
+    string? Observaciones,
+    EstadoConvenio Estado,
+    decimal? MontoSolicitado,
+    int? PlazoDiasSolicitado,
+    decimal VariacionAcumuladaPorcentaje,
+    DateTime FechaEmision,
+    DateTime? FechaAutorizacion,
+    bool Aplicado,
+    DateTime? FechaAplicacion,
     RevisionSupervisionDto? Revision,
     PromocionResidenciaDto? Promocion,
-    ResolucionDependenciaDto? Resolucion);
+    ResolucionDependenciaDto? Resolucion,
+    List<ConvenioHistorialDto> Historial);
 
 public record RevisionSupervisionDto(DictamenTecnico Decision, string Justificacion, int SupervisorId, DateTime Fecha);
 public record PromocionResidenciaDto(int ResidenteId, DateTime Fecha);
@@ -59,6 +78,25 @@ public record ResolucionDependenciaDto(bool Aprobado, string? MotivoRechazo, int
 public record RevisarConvenioDto(DictamenTecnico Decision, string Justificacion, int SupervisorId);
 public record PromoverConvenioDto(int ResidenteId);
 public record ResolverConvenioDto(bool Aprobado, string? MotivoRechazo, int UsuarioDependenciaId);
+
+public record AplicarConvenioDto(int UsuarioId);
+
+public record ConvenioHistorialDto(
+    int Id,
+    string Accion,
+    EstadoConvenio? EstadoNuevo,
+    DateTime Fecha,
+    int UsuarioId,
+    string? Comentario);
+
+public record AplicarConvenioResultadoDto(
+    int ConvenioId,
+    int ContratoId,
+    decimal ImporteSinIVA,
+    decimal Iva,
+    decimal ImporteTotal,
+    DateOnly FechaTermino,
+    bool ContratoCuadraConConceptos);
 
 // SV-05
 public record IniciarEntregaRecepcionDto(int ContratoId, DateOnly FechaEntrega, string EstadoObraDescripcion, string EstadoGarantiasDescripcion, List<string> UrlsEvidencia);
@@ -77,10 +115,12 @@ public record GarantiaInputDto(TipoGarantia Tipo, decimal Monto, decimal Porcent
 public record CrearContratoDto(
     string NumeroContrato,
     TipoContrato Tipo,
-    decimal MontoContratado,
+    decimal ImporteSinIVA,
+    decimal IvaPorcentaje,
     DateOnly FechaInicio,
     DateOnly FechaTermino,
     string DependenciaContratante,
+    int ResidenteUsuarioId,
     int? EmpresaId = null,
     string? NumeroLicitacion = null,
     string NombreObra = "",
@@ -88,30 +128,45 @@ public record CrearContratoDto(
     TipoPeriodoEstimacion? TipoPeriodo = null,
     ModalidadPago? ModalidadPago = null,
     decimal? PorcentajeAnticipo = null,
-    string ResidenteNombre = "",
-    string SupervisorExternoNombre = "",
-    string SuperintendenteNombre = "",
+    int? SupervisorExternoUsuarioId = null,
+    int? SuperintendenteUsuarioId = null,
+    int? FinancialUsuarioId = null,
     List<GarantiaInputDto>? Garantias = null);
 
 public record ActualizarContratoDto(
     string NumeroContrato,
     TipoContrato Tipo,
-    decimal MontoContratado,
+    decimal ImporteSinIVA,
+    decimal IvaPorcentaje,
     DateOnly FechaInicio,
     DateOnly FechaTermino,
     string DependenciaContratante,
+    int ResidenteUsuarioId,
     string NombreObra = "",
-    string ResidenteNombre = "",
-    string SupervisorExternoNombre = "",
-    string SuperintendenteNombre = "");
+    int? SupervisorExternoUsuarioId = null,
+    int? SuperintendenteUsuarioId = null,
+    int? FinancialUsuarioId = null);
 
 public record ContratoResumenDto(int Id, string NumeroContrato, decimal MontoContratado, decimal MontoEstimado, decimal MontoPagado, EstadoContrato Estado);
+
+public record ResponsableDto(int? UsuarioId, string? Nombre);
+
+public record ConceptosResumenDto(
+    int TotalSecciones,
+    int TotalConceptos,
+    decimal ImporteTotalConceptosActivos,
+    decimal ImporteSinIVAContrato,
+    decimal DiferenciaConceptosContrato,
+    bool ContratoCuadraConConceptos);
 
 public record ContratoDetalleDto(
     int Id,
     string NumeroContrato,
     TipoContrato Tipo,
-    decimal MontoContratado,
+    decimal ImporteTotal,
+    decimal ImporteSinIVA,
+    decimal IvaPorcentaje,
+    decimal IVA,
     DateOnly FechaInicio,
     DateOnly FechaTermino,
     string DependenciaContratante,
@@ -120,11 +175,13 @@ public record ContratoDetalleDto(
     EstadoContrato Estado,
     decimal ImporteTotalCatalogo,
     string? NombreObra,
-    string? ResidenteNombre,
-    string? SupervisorExternoNombre,
-    string? SuperintendenteNombre,
+    ResponsableDto Residente,
+    ResponsableDto? SupervisorExterno,
+    ResponsableDto? Superintendente,
+    ResponsableDto? Financial,
     List<ConceptoContratoDto> ConceptoContratos,
-    List<GarantiaDto> Garantias);
+    List<GarantiaDto> Garantias,
+    ConceptosResumenDto ConceptosResumen);
 
 public record ConceptoContratoDto(int Id, string Clave, string Descripcion, string UnidadMedida, decimal CantidadContratada, decimal PrecioUnitario, decimal Importe);
 public record GarantiaDto(int Id, TipoGarantia Tipo, decimal Monto, decimal Porcentaje, DateOnly Vigencia, EstadoGarantia Estado);
@@ -214,16 +271,20 @@ public record ContratoDetalleCompletoDto(
     string? UbicacionExacta,
     decimal ImporteTotal,
     decimal ImporteSinIVA,
+    decimal IvaPorcentaje,
+    decimal IVA,
     ModalidadPago ModalidadPago,
     decimal PorcentajeAnticipo,
     decimal MontoAnticipo,
     int NumeroPeriodos,
-    string? ResidenteNombre,
-    string? SupervisorExternoNombre,
-    string? SuperintendenteNombre,
+    ResponsableDto Residente,
+    ResponsableDto? SupervisorExterno,
+    ResponsableDto? Superintendente,
+    ResponsableDto? Financial,
     EmpresaResumenDetalleDto Empresa,
     List<PeriodoContratoResponse> Periodos,
     ResumenConceptosDetalleDto Conceptos,
+    ConceptosResumenDto ConceptosResumen,
     bool TieneProgramaObra,
     ResumenEstimacionesDetalleDto Estimaciones,
     ResumenConveniosDetalleDto Convenios,

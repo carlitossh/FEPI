@@ -14,10 +14,8 @@ public class ArchivoEvidenciaRepository : GenericRepository<ArchivoEvidencia>, I
         _context = context;
     }
 
-    public async Task<List<ArchivoEvidencia>> GetByEntidadAsync(
-        EntidadArchivo entidad, int entidadId, CancellationToken ct = default)
+    public async Task<List<ArchivoEvidencia>> GetTodosAsync(CancellationToken ct = default)
         => await _context.ArchivosEvidencia
-            .Where(a => a.EntidadRelacionada == entidad && a.EntidadId == entidadId)
             .OrderByDescending(a => a.FechaSubida)
             .ToListAsync(ct);
 }

@@ -69,7 +69,7 @@ public class ContratosController : ControllerBase
         [FromBody] ActualizarMontoContratoDto dto,
         CancellationToken ct)
     {
-        await _service.ActualizarMontoContratadoAsync(id, dto.NuevoMonto, ct);
+        await _service.ActualizarMontoContratadoAsync(id, dto.NuevoImporteSinIVA, dto.IvaPorcentaje, ct);
         return NoContent();
     }
 
@@ -90,4 +90,4 @@ public class ContratosController : ControllerBase
     }
 }
 
-public record ActualizarMontoContratoDto(decimal NuevoMonto);
+public record ActualizarMontoContratoDto(decimal NuevoImporteSinIVA, decimal IvaPorcentaje = 16m);

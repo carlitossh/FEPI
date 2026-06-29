@@ -26,7 +26,8 @@ public interface IContratoService
 
     Task ActualizarMontoContratadoAsync(
         int contratoId,
-        decimal nuevoMonto,
+        decimal nuevoImporteSinIVA,
+        decimal ivaPorcentaje,
         CancellationToken ct = default);
 
     Task ActualizarAsync(int contratoId, ActualizarContratoDto dto, CancellationToken ct = default);

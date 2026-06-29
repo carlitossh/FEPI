@@ -13,7 +13,4 @@ public class ArchivoEvidencia
     public DateTime FechaSubida { get; set; } = DateTime.UtcNow;
     public int UsuarioSubioId { get; set; }
     public Usuario? UsuarioSubio { get; set; }
-
-    public EntidadArchivo EntidadRelacionada { get; set; }
-    public int EntidadId { get; set; }
 }

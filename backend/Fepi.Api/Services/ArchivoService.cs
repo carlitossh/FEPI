@@ -21,8 +21,6 @@ public class ArchivoService : IArchivoService
 
     public async Task<ArchivoResponse> SubirAsync(
         IFormFile archivo,
-        EntidadArchivo entidad,
-        int entidadId,
         int usuarioId,
         CancellationToken ct = default)
     {
@@ -47,9 +45,7 @@ public class ArchivoService : IArchivoService
             TipoContenido = archivo.ContentType,
             TamanoBytes = archivo.Length,
             FechaSubida = DateTime.UtcNow,
-            UsuarioSubioId = usuarioId,
-            EntidadRelacionada = entidad,
-            EntidadId = entidadId
+            UsuarioSubioId = usuarioId
         };
 
         _context.ArchivosEvidencia.Add(registro);
@@ -79,11 +75,9 @@ public class ArchivoService : IArchivoService
         return (contenido, archivo.TipoContenido, archivo.NombreOriginal);
     }
 
-    public async Task<List<ArchivoResponse>> ListarPorEntidadAsync(
-        EntidadArchivo entidad, int entidadId, CancellationToken ct = default)
+    public async Task<List<ArchivoResponse>> ListarTodosAsync(CancellationToken ct = default)
     {
         var archivos = await _context.ArchivosEvidencia
-            .Where(a => a.EntidadRelacionada == entidad && a.EntidadId == entidadId)
             .OrderByDescending(a => a.FechaSubida)
             .ToListAsync(ct);
 
@@ -91,6 +85,5 @@ public class ArchivoService : IArchivoService
     }
 
     private static ArchivoResponse MapearResponse(ArchivoEvidencia a) =>
-        new(a.Id, a.NombreOriginal, a.TipoContenido, a.TamanoBytes,
-            a.FechaSubida, a.UsuarioSubioId, a.EntidadRelacionada, a.EntidadId);
+        new(a.Id, a.NombreOriginal, a.TipoContenido, a.TamanoBytes, a.FechaSubida, a.UsuarioSubioId);
 }

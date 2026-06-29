@@ -26,7 +26,7 @@ public class ConceptosService : IConceptosService
         return contrato.SeccionesConcepto.Select(s =>
         {
             var importeSeccion = s.Conceptos.Where(c => c.Activo).Sum(c => c.PrecioUnitario * c.CantidadContratada);
-            var peso = contrato.ImporteTotal > 0 ? importeSeccion / contrato.ImporteTotal : 0;
+            var peso = contrato.ImporteSinIVA > 0 ? importeSeccion / contrato.ImporteSinIVA : 0;
             return new SeccionConceptoResponse(
                 s.Id, s.ContratoId, s.Nombre, s.Descripcion, importeSeccion, peso,
                 s.Conceptos.Select(c => new ConceptoContratoResponse(
@@ -56,14 +56,25 @@ public class ConceptosService : IConceptosService
 
     public async Task<int> CrearConceptoAsync(int contratoId, CrearConceptoRequest dto, CancellationToken ct = default)
     {
-        var contratoExiste = await _context.Contratos.AnyAsync(c => c.Id == contratoId, ct);
-        if (!contratoExiste)
-            throw new InvalidOperationException("Contrato no encontrado.");
+        var contrato = await _context.Contratos
+            .Include(c => c.ConceptoContratos)
+            .FirstOrDefaultAsync(c => c.Id == contratoId, ct)
+            ?? throw new InvalidOperationException("Contrato no encontrado.");
 
         var seccionExiste = await _context.SeccionesConcepto
             .AnyAsync(s => s.Id == dto.SeccionConceptoId && s.ContratoId == contratoId, ct);
         if (!seccionExiste)
             throw new InvalidOperationException("Sección no encontrada en este contrato.");
+
+        var nuevoImporte = dto.CantidadContratada * dto.PrecioUnitario;
+        var sumaActual = contrato.ConceptoContratos
+            .Where(c => c.Activo)
+            .Sum(c => c.CantidadContratada * c.PrecioUnitario);
+
+        if (!dto.EsExtraordinario && sumaActual + nuevoImporte > contrato.ImporteSinIVA + 0.01m)
+            throw new InvalidOperationException(
+                $"Agregar este concepto excedería el importe sin IVA del contrato ({contrato.ImporteSinIVA:N2}). " +
+                $"Suma actual: {sumaActual:N2}, nuevo concepto: {nuevoImporte:N2}.");
 
         var concepto = new ConceptoContrato
         {
@@ -86,8 +97,24 @@ public class ConceptosService : IConceptosService
 
     public async Task ActualizarConceptoAsync(int conceptoId, CrearConceptoRequest dto, CancellationToken ct = default)
     {
-        var concepto = await _context.ConceptosContrato.FindAsync(new object[] { conceptoId }, ct)
+        var concepto = await _context.ConceptosContrato
+            .Include(c => c.Contrato)
+            .FirstOrDefaultAsync(c => c.Id == conceptoId, ct)
             ?? throw new InvalidOperationException("Concepto no encontrado.");
+
+        var nuevoImporte = dto.CantidadContratada * dto.PrecioUnitario;
+        var importeActualDeEsteConcepto = concepto.CantidadContratada * concepto.PrecioUnitario;
+
+        var sumaOtros = await _context.ConceptosContrato
+            .Where(c => c.ContratoId == concepto.ContratoId && c.Activo && c.Id != conceptoId)
+            .SumAsync(c => c.CantidadContratada * c.PrecioUnitario, ct);
+
+        var importeSinIVA = concepto.Contrato!.ImporteSinIVA;
+
+        if (!concepto.EsExtraordinario && sumaOtros + nuevoImporte > importeSinIVA + 0.01m)
+            throw new InvalidOperationException(
+                $"Actualizar este concepto excedería el importe sin IVA del contrato ({importeSinIVA:N2}). " +
+                $"Suma otros conceptos activos: {sumaOtros:N2}, importe nuevo: {nuevoImporte:N2}.");
 
         concepto.SeccionConceptoId = dto.SeccionConceptoId;
         concepto.Clave = dto.Clave;

@@ -322,8 +322,6 @@ public record RegistroDiarioResponse(
 public class SubirArchivoRequest
 {
     public IFormFile Archivo { get; set; } = null!;
-    public EntidadArchivo Entidad { get; set; }
-    public int EntidadId { get; set; }
     public int UsuarioId { get; set; }
 }
 
@@ -333,9 +331,7 @@ public record ArchivoResponse(
     string TipoContenido,
     long TamanoBytes,
     DateTime FechaSubida,
-    int UsuarioSubioId,
-    EntidadArchivo EntidadRelacionada,
-    int EntidadId
+    int UsuarioSubioId
 );
 
 // ===================== ALERTAS USUARIO =====================

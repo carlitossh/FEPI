@@ -62,6 +62,18 @@ public class ConveniosController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:int}/aplicar")]
+    public async Task<ActionResult<ApiResponse<AplicarConvenioResultadoDto>>> Aplicar(
+        int id, [FromBody] AplicarConvenioDto dto, CancellationToken ct)
+    {
+        var resultado = await _service.AplicarAsync(id, dto, ct);
+        return Ok(new ApiResponse<AplicarConvenioResultadoDto>(true, "Convenio aplicado correctamente", resultado));
+    }
+
+    [HttpGet("{id:int}/historial")]
+    public async Task<ActionResult<List<ConvenioHistorialDto>>> ObtenerHistorial(int id, CancellationToken ct)
+        => Ok(await _service.ObtenerHistorialAsync(id, ct));
+
     [HttpGet("/api/contratos/{contratoId:int}/convenios")]
     public async Task<ActionResult<List<ConvenioResumenDto>>> ListarPorContratoAlias(int contratoId, CancellationToken ct)
         => Ok(await _service.ListarPorContratoAsync(contratoId, ct));

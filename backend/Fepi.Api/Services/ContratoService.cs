@@ -23,11 +23,10 @@ public class ContratoService : IContratoService
         if (existe)
             throw new InvalidOperationException("Ya existe un contrato con ese número.");
 
-        // Calcular periodos
-        var nPeriodos = CalcularNumeroPeriodos(dto.FechaInicio, dto.FechaTermino, dto.TipoPeriodo ?? TipoPeriodoEstimacion.Mensual);
-        var montoAnticipo = Math.Round(dto.MontoContratado * (dto.PorcentajeAnticipo ?? 0) / 100, 2);
-        var importeSinIva = Math.Round(dto.MontoContratado / 1.16m, 2);
-        var iva = dto.MontoContratado - importeSinIva;
+        // Validar usuario residente
+        var residenteExiste = await _context.Usuarios.AnyAsync(u => u.Id == dto.ResidenteUsuarioId, ct);
+        if (!residenteExiste)
+            throw new InvalidOperationException("El usuario residente no existe.");
 
         var empresaId = dto.EmpresaId ?? 0;
         if (empresaId == 0)
@@ -37,15 +36,23 @@ public class ContratoService : IContratoService
         if (!empresaExiste)
             throw new InvalidOperationException("Empresa contratista no encontrada.");
 
+        var ivaPct = dto.IvaPorcentaje <= 0 ? 16m : dto.IvaPorcentaje;
+        var iva = Math.Round(dto.ImporteSinIVA * ivaPct / 100m, 2);
+        var importeTotal = dto.ImporteSinIVA + iva;
+        var nPeriodos = CalcularNumeroPeriodos(dto.FechaInicio, dto.FechaTermino, dto.TipoPeriodo ?? TipoPeriodoEstimacion.Mensual);
+        var montoAnticipo = Math.Round(importeTotal * (dto.PorcentajeAnticipo ?? 0) / 100m, 2);
+
         var contrato = new Contrato
         {
             NumeroContrato = dto.NumeroContrato,
             NombreObra = dto.NombreObra,
+            NumeroLicitacion = dto.NumeroLicitacion,
             Tipo = dto.Tipo,
             EmpresaId = empresaId,
-            ImporteTotal = dto.MontoContratado,
-            ImporteSinIVA = importeSinIva,
+            ImporteSinIVA = dto.ImporteSinIVA,
+            IvaPorcentaje = ivaPct,
             IVA = iva,
+            ImporteTotal = importeTotal,
             ModalidadPago = dto.ModalidadPago ?? ModalidadPago.PrecioUnitario,
             PorcentajeAnticipo = dto.PorcentajeAnticipo ?? 0,
             MontoAnticipo = montoAnticipo,
@@ -54,14 +61,15 @@ public class ContratoService : IContratoService
             TipoPeriodo = dto.TipoPeriodo ?? TipoPeriodoEstimacion.Mensual,
             NumeroPeriodos = nPeriodos,
             DependenciaContratante = dto.DependenciaContratante,
-            ResidenteNombre = dto.ResidenteNombre,
-            SupervisorExternoNombre = dto.SupervisorExternoNombre,
-            SuperintendenteNombre = dto.SuperintendenteNombre,
+            UbicacionExacta = dto.UbicacionExacta,
+            ResidenteUsuarioId = dto.ResidenteUsuarioId,
+            SupervisorExternoUsuarioId = dto.SupervisorExternoUsuarioId,
+            SuperintendenteUsuarioId = dto.SuperintendenteUsuarioId,
+            FinancialUsuarioId = dto.FinancialUsuarioId,
             Estado = EstadoContrato.Activo,
             FechaCreacion = DateTime.UtcNow
         };
 
-        // Generar periodos automáticamente
         GenerarPeriodos(contrato);
 
         foreach (var g in dto.Garantias ?? [])
@@ -85,29 +93,42 @@ public class ContratoService : IContratoService
     {
         var c = await _context.Contratos
             .Include(x => x.Empresa)
+            .Include(x => x.ResidenteUsuario)
+            .Include(x => x.SupervisorExternoUsuario)
+            .Include(x => x.SuperintendenteUsuario)
+            .Include(x => x.FinancialUsuario)
             .Include(x => x.ConceptoContratos)
             .Include(x => x.Garantias)
             .FirstOrDefaultAsync(x => x.Id == contratoId, ct)
             ?? throw new InvalidOperationException("Contrato no encontrado.");
 
-        var empresaNombre = c.Empresa?.Nombre ?? "";
+        var conceptosActivos = c.ConceptoContratos.Where(x => x.Activo).ToList();
+        var importeConceptos = conceptosActivos.Sum(x => x.PrecioUnitario * x.CantidadContratada);
+        var diferencia = importeConceptos - c.ImporteSinIVA;
+        var cuadra = Math.Abs(diferencia) <= 0.01m;
+
+        var secciones = await _context.SeccionesConcepto.Where(s => s.ContratoId == contratoId).CountAsync(ct);
 
         return new ContratoDetalleDto(
             c.Id,
             c.NumeroContrato,
             c.Tipo,
             c.ImporteTotal,
+            c.ImporteSinIVA,
+            c.IvaPorcentaje,
+            c.IVA,
             c.FechaInicio,
             c.FechaTermino,
             c.DependenciaContratante,
-            empresaNombre,
-            "",
+            c.Empresa?.Nombre ?? "",
+            c.Empresa?.RepresentanteUsuario?.Nombre ?? "",
             c.Estado,
-            c.ConceptoContratos.Where(x => x.Activo).Sum(x => x.PrecioUnitario * x.CantidadContratada),
+            importeConceptos,
             c.NombreObra,
-            c.ResidenteNombre,
-            c.SupervisorExternoNombre,
-            c.SuperintendenteNombre,
+            new ResponsableDto(c.ResidenteUsuarioId, c.ResidenteUsuario?.Nombre),
+            c.SupervisorExternoUsuarioId is null ? null : new ResponsableDto(c.SupervisorExternoUsuarioId, c.SupervisorExternoUsuario?.Nombre),
+            c.SuperintendenteUsuarioId is null ? null : new ResponsableDto(c.SuperintendenteUsuarioId, c.SuperintendenteUsuario?.Nombre),
+            c.FinancialUsuarioId is null ? null : new ResponsableDto(c.FinancialUsuarioId, c.FinancialUsuario?.Nombre),
             c.ConceptoContratos
                 .Select(x => new ConceptoContratoDto(
                     x.Id, x.Clave, x.Descripcion, x.UnidadMedida,
@@ -116,7 +137,14 @@ public class ContratoService : IContratoService
                 .ToList(),
             c.Garantias
                 .Select(x => new GarantiaDto(x.Id, x.Tipo, x.Monto, x.Porcentaje, x.Vigencia, x.Estado))
-                .ToList()
+                .ToList(),
+            new ConceptosResumenDto(
+                secciones,
+                c.ConceptoContratos.Count,
+                importeConceptos,
+                c.ImporteSinIVA,
+                diferencia,
+                cuadra)
         );
     }
 
@@ -218,17 +246,21 @@ public class ContratoService : IContratoService
 
     public async Task ActualizarMontoContratadoAsync(
         int contratoId,
-        decimal nuevoMonto,
+        decimal nuevoImporteSinIVA,
+        decimal ivaPorcentaje,
         CancellationToken ct = default)
     {
         var contrato = await _context.Contratos
             .FirstOrDefaultAsync(c => c.Id == contratoId, ct)
             ?? throw new InvalidOperationException("Contrato no encontrado.");
 
-        contrato.ImporteTotal = nuevoMonto;
-        contrato.ImporteSinIVA = Math.Round(nuevoMonto / 1.16m, 2);
-        contrato.IVA = nuevoMonto - contrato.ImporteSinIVA;
-        contrato.MontoAnticipo = Math.Round(nuevoMonto * contrato.PorcentajeAnticipo / 100, 2);
+        var ivaPct = ivaPorcentaje > 0 ? ivaPorcentaje : contrato.IvaPorcentaje;
+        var iva = Math.Round(nuevoImporteSinIVA * ivaPct / 100m, 2);
+        contrato.ImporteSinIVA = nuevoImporteSinIVA;
+        contrato.IvaPorcentaje = ivaPct;
+        contrato.IVA = iva;
+        contrato.ImporteTotal = nuevoImporteSinIVA + iva;
+        contrato.MontoAnticipo = Math.Round(contrato.ImporteTotal * contrato.PorcentajeAnticipo / 100m, 2);
 
         await _context.SaveChangesAsync(ct);
     }
@@ -247,18 +279,28 @@ public class ContratoService : IContratoService
                 throw new InvalidOperationException("Ya existe un contrato con ese número.");
         }
 
+        var residenteExiste = await _context.Usuarios.AnyAsync(u => u.Id == dto.ResidenteUsuarioId, ct);
+        if (!residenteExiste)
+            throw new InvalidOperationException("El usuario residente no existe.");
+
+        var ivaPct = dto.IvaPorcentaje <= 0 ? contrato.IvaPorcentaje : dto.IvaPorcentaje;
+        var iva = Math.Round(dto.ImporteSinIVA * ivaPct / 100m, 2);
+
         contrato.NumeroContrato = dto.NumeroContrato;
         contrato.NombreObra = dto.NombreObra;
         contrato.Tipo = dto.Tipo;
-        contrato.ImporteTotal = dto.MontoContratado;
-        contrato.ImporteSinIVA = Math.Round(dto.MontoContratado / 1.16m, 2);
-        contrato.IVA = dto.MontoContratado - contrato.ImporteSinIVA;
+        contrato.ImporteSinIVA = dto.ImporteSinIVA;
+        contrato.IvaPorcentaje = ivaPct;
+        contrato.IVA = iva;
+        contrato.ImporteTotal = dto.ImporteSinIVA + iva;
         contrato.FechaInicio = dto.FechaInicio;
         contrato.FechaTermino = dto.FechaTermino;
         contrato.DependenciaContratante = dto.DependenciaContratante;
-        contrato.ResidenteNombre = dto.ResidenteNombre;
-        contrato.SupervisorExternoNombre = dto.SupervisorExternoNombre;
-        contrato.SuperintendenteNombre = dto.SuperintendenteNombre;
+        contrato.ResidenteUsuarioId = dto.ResidenteUsuarioId;
+        contrato.SupervisorExternoUsuarioId = dto.SupervisorExternoUsuarioId;
+        contrato.SuperintendenteUsuarioId = dto.SuperintendenteUsuarioId;
+        contrato.FinancialUsuarioId = dto.FinancialUsuarioId;
+        contrato.MontoAnticipo = Math.Round(contrato.ImporteTotal * contrato.PorcentajeAnticipo / 100m, 2);
 
         await _context.SaveChangesAsync(ct);
     }
@@ -267,6 +309,10 @@ public class ContratoService : IContratoService
     {
         var c = await _context.Contratos
             .Include(x => x.Empresa).ThenInclude(e => e!.RepresentanteUsuario)
+            .Include(x => x.ResidenteUsuario)
+            .Include(x => x.SupervisorExternoUsuario)
+            .Include(x => x.SuperintendenteUsuario)
+            .Include(x => x.FinancialUsuario)
             .Include(x => x.Periodos)
             .Include(x => x.SeccionesConcepto).ThenInclude(s => s.Conceptos)
             .Include(x => x.ProgramaObraSecciones)
@@ -300,17 +346,17 @@ public class ContratoService : IContratoService
             .ToListAsync(ct);
 
         var varMonto = convenios
-            .Where(cv => cv.Estado == EstadoConvenio.Aplicado)
+            .Where(cv => cv.Aplicado)
             .Sum(cv => cv.MontoSolicitado ?? 0);
 
         var varDias = convenios
-            .Where(cv => cv.Estado == EstadoConvenio.Aplicado)
+            .Where(cv => cv.Aplicado)
             .Sum(cv => cv.PlazoDiasSolicitado ?? 0);
 
         var resumenConv = new ResumenConveniosDetalleDto(
             convenios.Count,
-            convenios.Count(cv => cv.Estado == EstadoConvenio.Aplicado),
-            convenios.Count(cv => cv.Estado != EstadoConvenio.Aplicado),
+            convenios.Count(cv => cv.Aplicado),
+            convenios.Count(cv => !cv.Aplicado),
             varMonto == 0 ? null : varMonto,
             varDias == 0 ? null : varDias);
 
@@ -328,11 +374,9 @@ public class ContratoService : IContratoService
                 bitacora.Notas.Count(n => n.EstadoFirma == EstadoFirmaNota.Pendiente));
         }
 
-        // Registros diarios
         var totalRegistros = await _context.RegistrosDiarios
             .CountAsync(r => r.ContratoId == contratoId, ct);
 
-        // Finiquito
         var finiquito = await _context.FiniquitosContrato
             .FirstOrDefaultAsync(f => f.ContratoId == contratoId, ct);
 
@@ -345,7 +389,6 @@ public class ContratoService : IContratoService
                 finiquito.ImporteFinalAFiniquitar == 0 ? null : finiquito.ImporteFinalAFiniquitar);
         }
 
-        // Alertas recientes del contrato (últimas 5)
         var alertas = await _context.AlertasUsuario
             .Where(a => a.ContratoId == contratoId)
             .OrderByDescending(a => a.FechaCreacion)
@@ -355,7 +398,7 @@ public class ContratoService : IContratoService
 
         // Resumen conceptos
         var todosConceptos = c.SeccionesConcepto.SelectMany(s => s.Conceptos).ToList();
-        var importeCatalogo = todosConceptos
+        var importeConceptosActivos = todosConceptos
             .Where(con => con.Activo)
             .Sum(con => con.CantidadContratada * con.PrecioUnitario);
 
@@ -363,7 +406,16 @@ public class ContratoService : IContratoService
             c.SeccionesConcepto.Count,
             todosConceptos.Count,
             todosConceptos.Count(con => con.Activo),
-            importeCatalogo);
+            importeConceptosActivos);
+
+        var diferencia = importeConceptosActivos - c.ImporteSinIVA;
+        var conceptosResumen = new ConceptosResumenDto(
+            c.SeccionesConcepto.Count,
+            todosConceptos.Count,
+            importeConceptosActivos,
+            c.ImporteSinIVA,
+            diferencia,
+            Math.Abs(diferencia) <= 0.01m);
 
         var periodos = c.Periodos
             .OrderBy(p => p.Numero)
@@ -374,14 +426,18 @@ public class ContratoService : IContratoService
             c.Id, c.NumeroContrato, c.NumeroLicitacion, c.NombreObra,
             c.Tipo, c.Estado, c.FechaInicio, c.FechaTermino, c.FechaCreacion,
             c.DependenciaContratante, c.UbicacionExacta,
-            c.ImporteTotal, c.ImporteSinIVA, c.ModalidadPago,
-            c.PorcentajeAnticipo, c.MontoAnticipo, c.NumeroPeriodos,
-            c.ResidenteNombre, c.SupervisorExternoNombre, c.SuperintendenteNombre,
+            c.ImporteTotal, c.ImporteSinIVA, c.IvaPorcentaje, c.IVA,
+            c.ModalidadPago, c.PorcentajeAnticipo, c.MontoAnticipo, c.NumeroPeriodos,
+            new ResponsableDto(c.ResidenteUsuarioId, c.ResidenteUsuario?.Nombre),
+            c.SupervisorExternoUsuarioId is null ? null : new ResponsableDto(c.SupervisorExternoUsuarioId, c.SupervisorExternoUsuario?.Nombre),
+            c.SuperintendenteUsuarioId is null ? null : new ResponsableDto(c.SuperintendenteUsuarioId, c.SuperintendenteUsuario?.Nombre),
+            c.FinancialUsuarioId is null ? null : new ResponsableDto(c.FinancialUsuarioId, c.FinancialUsuario?.Nombre),
             new EmpresaResumenDetalleDto(
                 c.Empresa!.Id, c.Empresa.Nombre,
                 c.Empresa.RepresentanteUsuario?.Nombre ?? ""),
             periodos,
             resumenConc,
+            conceptosResumen,
             c.ProgramaObraSecciones.Any(),
             resumenEst,
             resumenConv,

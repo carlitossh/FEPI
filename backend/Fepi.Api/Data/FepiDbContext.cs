@@ -79,6 +79,7 @@ public class FepiDbContext : DbContext
     public DbSet<ConvenioModificatorio> ConveniosModificatorios => Set<ConvenioModificatorio>();
     public DbSet<ConvenioCambio> ConvenioCambios => Set<ConvenioCambio>();
     public DbSet<ConvenioDocumento> ConvenioDocumentos => Set<ConvenioDocumento>();
+    public DbSet<ConvenioHistorial> ConvenioHistoriales => Set<ConvenioHistorial>();
     public DbSet<ConvenioRevisionSupervision> ConvenioRevisionesSupervision => Set<ConvenioRevisionSupervision>();
     public DbSet<ConvenioPromocionResidencia> ConvenioPromocionesResidencia => Set<ConvenioPromocionResidencia>();
     public DbSet<ConvenioResolucionDependencia> ConvenioResolucionesDependencia => Set<ConvenioResolucionDependencia>();
@@ -156,13 +157,40 @@ public class FepiDbContext : DbContext
 
             entity.Property(x => x.ImporteTotal).HasPrecision(18, 2);
             entity.Property(x => x.ImporteSinIVA).HasPrecision(18, 2);
+            entity.Property(x => x.IvaPorcentaje).HasPrecision(5, 2);
             entity.Property(x => x.IVA).HasPrecision(18, 2);
             entity.Property(x => x.PorcentajeAnticipo).HasPrecision(5, 2);
             entity.Property(x => x.MontoAnticipo).HasPrecision(18, 2);
 
+#pragma warning disable CS0618
+            entity.Property(x => x.ResidenteNombre).HasMaxLength(150);
+            entity.Property(x => x.SupervisorExternoNombre).HasMaxLength(150);
+            entity.Property(x => x.SuperintendenteNombre).HasMaxLength(150);
+#pragma warning restore CS0618
+
             entity.HasOne(x => x.Empresa)
                 .WithMany(x => x.Contratos)
                 .HasForeignKey(x => x.EmpresaId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ResidenteUsuario)
+                .WithMany()
+                .HasForeignKey(x => x.ResidenteUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.SupervisorExternoUsuario)
+                .WithMany()
+                .HasForeignKey(x => x.SupervisorExternoUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.SuperintendenteUsuario)
+                .WithMany()
+                .HasForeignKey(x => x.SuperintendenteUsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.FinancialUsuario)
+                .WithMany()
+                .HasForeignKey(x => x.FinancialUsuarioId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -478,6 +506,7 @@ public class FepiDbContext : DbContext
         modelBuilder.Entity<EstimacionHistorial>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.Accion).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Comentario).HasMaxLength(1000);
 
             entity.HasOne(x => x.Estimacion)
@@ -740,6 +769,7 @@ public class FepiDbContext : DbContext
             entity.Property(x => x.NumeroConvenio).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Descripcion).HasMaxLength(500).IsRequired();
             entity.Property(x => x.Justificacion).HasMaxLength(2000).IsRequired();
+            entity.Property(x => x.Observaciones).HasMaxLength(2000);
             entity.Property(x => x.MontoSolicitado).HasPrecision(18, 2);
             entity.Property(x => x.VariacionAcumuladaPorcentaje).HasPrecision(5, 2);
 
@@ -758,6 +788,7 @@ public class FepiDbContext : DbContext
         {
             entity.HasKey(x => x.Id);
 
+            entity.Property(x => x.TipoCambio).HasMaxLength(100).IsRequired();
             entity.Property(x => x.EntidadAfectada).HasMaxLength(100).IsRequired();
             entity.Property(x => x.CampoAfectado).HasMaxLength(100).IsRequired();
             entity.Property(x => x.ValorAnterior).HasMaxLength(500).IsRequired();
@@ -780,6 +811,23 @@ public class FepiDbContext : DbContext
                 .WithMany(x => x.Documentos)
                 .HasForeignKey(x => x.ConvenioModificatorioId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ConvenioHistorial>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Accion).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Comentario).HasMaxLength(1000);
+
+            entity.HasOne(x => x.ConvenioModificatorio)
+                .WithMany(x => x.Historial)
+                .HasForeignKey(x => x.ConvenioModificatorioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Usuario)
+                .WithMany()
+                .HasForeignKey(x => x.UsuarioId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ConvenioRevisionSupervision>(entity =>

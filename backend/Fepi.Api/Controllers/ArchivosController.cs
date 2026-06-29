@@ -1,6 +1,5 @@
 using Fepi.Api.DTOs;
 using Fepi.Api.Interfaces;
-using Fepi.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Fepi.Api.Controllers;
@@ -16,11 +15,10 @@ public class ArchivosController : ControllerBase
         _service = service;
     }
 
-    [HttpGet("{entidad}/{entidadId:int}")]
-    public async Task<ActionResult<List<ArchivoResponse>>> ListarPorEntidad(
-        EntidadArchivo entidad, int entidadId, CancellationToken ct)
+    [HttpGet]
+    public async Task<ActionResult<List<ArchivoResponse>>> Listar(CancellationToken ct)
     {
-        var archivos = await _service.ListarPorEntidadAsync(entidad, entidadId, ct);
+        var archivos = await _service.ListarTodosAsync(ct);
         return Ok(archivos);
     }
 
@@ -46,7 +44,7 @@ public class ArchivosController : ControllerBase
         [FromForm] SubirArchivoRequest request,
         CancellationToken ct)
     {
-        var resultado = await _service.SubirAsync(request.Archivo, request.Entidad, request.EntidadId, request.UsuarioId, ct);
+        var resultado = await _service.SubirAsync(request.Archivo, request.UsuarioId, ct);
         return CreatedAtAction(nameof(ObtenerMetadata), new { id = resultado.Id }, resultado);
     }
 }

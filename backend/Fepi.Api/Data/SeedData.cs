@@ -62,17 +62,6 @@ public static class SeedData
         var empresas = await context.Empresas.OrderBy(e => e.Id).ToListAsync();
         var (emp1, emp2, emp3) = (empresas[0], empresas[1], empresas[2]);
 
-        decimal m1 = 11_000_000m, m2 = 8_500_000m, m3 = 3_200_000m;
-
-        var contratos = new List<Contrato>
-        {
-            MakeContrato("CT-2026-014", TipoContrato.ObraPublica,           emp1.Id, m1, new DateOnly(2026,3,1),  new DateOnly(2026,9,30),  TipoPeriodoEstimacion.Mensual,    7,  "SOPOT Edo. de México"),
-            MakeContrato("CT-2026-021", TipoContrato.ObraPublica,           emp2.Id, m2, new DateOnly(2026,2,15), new DateOnly(2026,8,15),  TipoPeriodoEstimacion.Mensual,    6,  "SOPOT Edo. de México"),
-            MakeContrato("CT-2026-032", TipoContrato.ServiciosRelacionados, emp3.Id, m3, new DateOnly(2026,1,10), new DateOnly(2026,7,10),  TipoPeriodoEstimacion.Quincenal, 12,  "Secretaría de Infraestructura Municipal"),
-        };
-        context.Contratos.AddRange(contratos);
-        await context.SaveChangesAsync();
-
         var usuarios = await context.Usuarios.ToListAsync();
         var admin        = usuarios.First(x => x.Correo == "admin@fepi.test");
         var residente    = usuarios.First(x => x.Correo == "residente@fepi.test");
@@ -80,6 +69,17 @@ public static class SeedData
         var super        = usuarios.First(x => x.Correo == "superintendente@fepi.test");
         var financiera   = usuarios.First(x => x.Correo == "financiera@fepi.test");
         var dependencia  = usuarios.First(x => x.Correo == "dependencia@fepi.test");
+
+        decimal m1 = 11_000_000m, m2 = 8_500_000m, m3 = 3_200_000m;
+
+        var contratos = new List<Contrato>
+        {
+            MakeContrato("CT-2026-014", TipoContrato.ObraPublica,           emp1.Id, m1, new DateOnly(2026,3,1),  new DateOnly(2026,9,30),  TipoPeriodoEstimacion.Mensual,    7,  "SOPOT Edo. de México",                   residente.Id, supervisor.Id, super.Id, financiera.Id),
+            MakeContrato("CT-2026-021", TipoContrato.ObraPublica,           emp2.Id, m2, new DateOnly(2026,2,15), new DateOnly(2026,8,15),  TipoPeriodoEstimacion.Mensual,    6,  "SOPOT Edo. de México",                   residente.Id, supervisor.Id, super.Id, financiera.Id),
+            MakeContrato("CT-2026-032", TipoContrato.ServiciosRelacionados, emp3.Id, m3, new DateOnly(2026,1,10), new DateOnly(2026,7,10),  TipoPeriodoEstimacion.Quincenal, 12,  "Secretaría de Infraestructura Municipal", residente.Id, supervisor.Id, super.Id, financiera.Id),
+        };
+        context.Contratos.AddRange(contratos);
+        await context.SaveChangesAsync();
 
         var relaciones = new List<UsuarioContrato>();
         foreach (var c in contratos)
@@ -100,28 +100,35 @@ public static class SeedData
 
     private static Contrato MakeContrato(
         string num, TipoContrato tipo, int empId, decimal monto,
-        DateOnly inicio, DateOnly termino, TipoPeriodoEstimacion periodo, int nPeriodos, string dep) =>
-        new()
+        DateOnly inicio, DateOnly termino, TipoPeriodoEstimacion periodo, int nPeriodos, string dep,
+        int residenteId, int? supervisorId = null, int? superintendenteId = null, int? financieroId = null)
+    {
+        const decimal iva = 16m;
+        var sinIva = Math.Round(monto / (1 + iva / 100m), 2);
+        return new()
         {
-            NumeroContrato          = num,
-            Tipo                    = tipo,
-            EmpresaId               = empId,
-            ImporteTotal            = monto,
-            ImporteSinIVA           = Math.Round(monto / 1.16m, 2),
-            IVA                     = monto - Math.Round(monto / 1.16m, 2),
-            ModalidadPago           = ModalidadPago.PrecioUnitario,
-            PorcentajeAnticipo      = 10m,
-            MontoAnticipo           = Math.Round(monto * 0.10m, 2),
-            FechaInicio             = inicio,
-            FechaTermino            = termino,
-            TipoPeriodo             = periodo,
-            NumeroPeriodos          = nPeriodos,
-            DependenciaContratante  = dep,
-            ResidenteNombre         = "Ing. Ana Herrera",
-            SupervisorExternoNombre = "Ing. Luis Martínez",
-            SuperintendenteNombre   = "Ing. Raúl Domínguez",
-            Estado                  = EstadoContrato.Activo,
+            NumeroContrato              = num,
+            Tipo                        = tipo,
+            EmpresaId                   = empId,
+            IvaPorcentaje               = iva,
+            ImporteSinIVA               = sinIva,
+            IVA                         = Math.Round(sinIva * iva / 100m, 2),
+            ImporteTotal                = monto,
+            ModalidadPago               = ModalidadPago.PrecioUnitario,
+            PorcentajeAnticipo          = 10m,
+            MontoAnticipo               = Math.Round(monto * 0.10m, 2),
+            FechaInicio                 = inicio,
+            FechaTermino                = termino,
+            TipoPeriodo                 = periodo,
+            NumeroPeriodos              = nPeriodos,
+            DependenciaContratante      = dep,
+            ResidenteUsuarioId          = residenteId,
+            SupervisorExternoUsuarioId  = supervisorId,
+            SuperintendenteUsuarioId    = superintendenteId,
+            FinancialUsuarioId          = financieroId,
+            Estado                      = EstadoContrato.Activo,
         };
+    }
 
     // ── Catálogo: conceptos, programa de obra, garantías ────────────────────
 
